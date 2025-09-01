@@ -6,91 +6,104 @@
 <title>ABSA Prize Wheel</title>
 <style>
   :root{
-    /* ABSA Brand Colors */
+    /* ABSA Brand */
     --absa-red: #E41E2D;
-    --absa-dark: #000000;
-    --absa-gray: #333333;
-    --absa-light: #F5F5F5;
-    --absa-gold: #FFC72C;
-    --absa-silver: #D9D9D9;
-    
+    --absa-red-2:#c11a26;
+    --absa-dark:#000000;
+    --absa-gray:#333333;
+    --absa-light:#F5F5F5;
+    --absa-gold:#FFC72C;
+    --absa-silver:#D9D9D9;
+
     /* Theme */
     --bg: var(--absa-light);
-    --panel: #ffffff;
-    --panel-2: #f0f0f0;
+    --panel:#ffffff;
+    --panel-2:#f3f3f3;
     --text: var(--absa-dark);
-    --muted: #666666;
-    --accent: var(--absa-red);
-    --ring: #e0e0e0;
+    --muted:#666;
+    --ring:#e6e6e6;
 
     /* Wheel */
-    --wheel-size: min(76vmin, 640px);
-    --hub-size: 92px;
-    --pointer-size: 34px;
-    --tick-size: 8px;
+    --wheel-size:min(76vmin, 640px);
+    --hub-size: 96px;
+    --pointer-size: 36px;
 
     /* Motion */
     --spin-ms: 4300ms;
     --bezier: cubic-bezier(.15,.9,.1,1);
+
+    /* Depth */
+    --shadow-1: 0 6px 14px rgba(0,0,0,.12);
+    --shadow-2: 0 14px 30px rgba(0,0,0,.16);
+    --focus: 0 0 0 3px rgba(228,30,45,.15), 0 0 0 6px rgba(228,30,45,.12);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg: #0e0e0f;
+      --panel:#121213;
+      --panel-2:#1a1a1b;
+      --text:#f7f7f7;
+      --muted:#b4b4b4;
+      --ring:#262627;
+    }
   }
 
   *{ box-sizing:border-box }
   html,body{ height:100% }
   body{
     margin:0;
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     color:var(--text);
-    background: var(--bg);
+    background:
+      radial-gradient(1200px 800px at 50% -10%, rgba(228,30,45,.12), transparent 60%),
+      radial-gradient(900px 600px at 10% 120%, rgba(0,0,0,.08), transparent 60%),
+      var(--bg);
     display:grid;
     place-items:center;
-    padding:20px;
+    padding:22px;
   }
 
   .app{
-    width:min(100%, 980px);
+    width:min(100%, 1080px);
     display:grid;
     gap:24px;
     justify-items:center;
     text-align:center;
   }
 
-  h1{
-    margin:0 0 4px 0;
-    font-size:clamp(24px,3.6vmin,36px);
-    font-weight:800;
-    color: var(--absa-red);
+  /* Header bar */
+  .absa-header{
+    width:100%;
+    background: linear-gradient(180deg,#0f0f10, #000);
+    color:#fff;
+    padding:14px 18px;
+    border-radius:16px;
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    box-shadow: var(--shadow-1);
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .absa-logo{
+    font-weight:900;
+    font-size:24px;
+    letter-spacing:.6px;
+  }
+  .absa-logo span{ color:var(--absa-red) }
+
+  header h1{
+    margin:0 0 6px 0;
+    font-size:clamp(26px,3.8vmin,38px);
+    font-weight:900;
+    letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
   }
   .sub{
     margin:0;
     color:var(--muted);
     font-size:clamp(14px,2vmin,17px);
-    max-width: 600px;
-    line-height: 1.5;
-  }
-
-  /* ABSA Header Bar */
-  .absa-header {
-    width: 100%;
-    background: var(--absa-dark);
-    color: white;
-    padding: 12px 20px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
-  
-  .absa-logo {
-    font-weight: 800;
-    font-size: 24px;
-    letter-spacing: 1px;
-  }
-  
-  .absa-logo span {
-    color: var(--absa-red);
+    max-width: 680px;
+    line-height:1.55;
   }
 
   /* Stage */
@@ -98,144 +111,166 @@
     position:relative;
     width:var(--wheel-size);
     aspect-ratio:1/1;
+    display:grid; place-items:center;
   }
 
-  /* Canvas/SVG wrapper for crispness */
+  /* Wheel wrapper with drop shadow + subtle base */
   .wheel-wrap{
     position:absolute; inset:0;
     display:grid; place-items:center;
-    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
+    filter: drop-shadow(0 14px 28px rgba(0,0,0,.18));
+  }
+  /* nice base ring shadow */
+  .wheel-wrap::after{
+    content:"";
+    position:absolute; inset:4%;
+    border-radius:50%;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 0 0 32px rgba(0,0,0,.06);
+    pointer-events:none;
   }
 
-  /* Pointer - positioned at top */
+  /* Pointer (polished brass vibe) */
   .pointer{
-    position:absolute; top: -6px; left:50%;
+    position:absolute; top:-2px; left:50%;
     transform: translateX(-50%) rotate(180deg);
     width:0; height:0;
     border-left: var(--pointer-size) solid transparent;
     border-right: var(--pointer-size) solid transparent;
-    border-bottom: calc(var(--pointer-size) * 1.6) solid var(--accent);
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    border-bottom: calc(var(--pointer-size) * 1.62) solid var(--absa-gold);
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.25));
     z-index:6;
   }
-  .pointer::after{
+  .pointer::before{
     content:"";
-    position:absolute; left:calc(-.5 * var(--pointer-size)); top:calc(var(--pointer-size) * 1.25);
-    width: calc(var(--pointer-size)); height: calc(var(--pointer-size));
-    border-radius:50%; background:var(--absa-dark);
-    outline: 2px solid var(--accent);
+    position:absolute; left:calc(-.5 * var(--pointer-size) + 2px); top:calc(var(--pointer-size) * 1.1);
+    width: calc(var(--pointer-size) - 4px); height: calc(var(--pointer-size) - 4px);
+    border-radius:50%;
+    background: radial-gradient(120% 120% at 30% 30%, #fff 0%, #f7f7f7 40%, #bbb 100%);
+    outline: 2px solid rgba(0,0,0,.25);
+    box-shadow: inset 0 2px 2px rgba(255,255,255,.45), inset 0 -3px 6px rgba(0,0,0,.25);
+  }
+
+  /* stop wobble while spinning so the dot doesn't bob */
+  .spinning .pointer{
+    animation: none;
   }
 
   /* Controls */
   .controls{
-    display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center;
-    background:var(--panel);
-    padding:20px 24px;
+    display:flex; flex-wrap:wrap; gap:14px 16px; justify-content:center; align-items:center;
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    padding:18px 20px;
     border-radius:16px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: var(--shadow-1);
     border: 1px solid var(--ring);
-    width:min(100%, 760px);
+    width:min(100%, 820px);
+    backdrop-filter: saturate(1.2);
   }
   button{
     appearance:none; border:0; cursor:pointer;
-    padding:14px 24px; border-radius:12px;
-    font-weight:700; 
-    letter-spacing:.2px;
-    background: var(--absa-red);
+    padding:14px 22px; border-radius:12px;
+    font-weight:800; letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
     color:white;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    transition: all 0.2s ease;
-    min-width: 140px;
+    box-shadow: 0 8px 16px rgba(228,30,45,.25);
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+    min-width: 148px;
   }
   button:hover{ 
-    background: #c11a26;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(228,30,45,.3);
+    filter: saturate(1.02);
   }
-  button:active{ 
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  button:active{ transform: translateY(0) scale(.99) }
+  button[disabled]{ opacity:.65; cursor:not-allowed; filter:grayscale(.1) }
+  button:focus-visible{ outline:none; box-shadow: var(--focus) }
+
+  #resetBtn{
+    background: linear-gradient(180deg, #3b3b3b, #202020);
+    box-shadow: 0 8px 16px rgba(0,0,0,.25);
   }
-  button[disabled]{ 
-    opacity:.6; 
-    cursor:not-allowed;
-    background: var(--muted);
-  }
-  
-  #resetBtn {
-    background: var(--absa-gray);
-  }
-  
-  #resetBtn:hover {
-    background: #222;
-  }
+  #resetBtn:hover{ filter:brightness(1.02) }
 
   .readout{ 
-    flex: 1 1 280px; 
+    flex: 1 1 320px; 
     text-align:center; 
     color:var(--muted); 
-    font-weight:600;
-    padding: 8px 12px;
+    font-weight:700;
+    padding: 10px 12px;
     background: var(--panel-2);
-    border-radius: 8px;
+    border-radius: 10px;
+    border:1px solid var(--ring);
   }
   .readout strong{ color:var(--absa-red) }
 
-  /* Toast result */
+  /* Toast */
   .toast{
-    position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(20px);
-    background: white;
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(18px);
+    background: var(--panel);
     color:var(--text); 
-    border-radius:12px; 
+    border-radius:14px; 
     padding:16px 20px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    box-shadow: var(--shadow-2);
     border: 1px solid var(--ring);
     opacity:0; 
     pointer-events:none; 
     transition: all .35s var(--bezier);
-    max-width:min(90vw, 560px);
-    font-weight: 600;
+    max-width:min(92vw, 620px);
+    font-weight: 800;
     text-align: center;
     z-index: 100;
   }
-  .toast.win {
-    background: var(--absa-red);
+  .toast.win{
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
     color: white;
+    border-color: rgba(255,255,255,.22);
+    text-shadow: 0 1px 0 rgba(0,0,0,.25);
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
 
-  /* Confetti canvas sits on top when celebrating */
-  #confetti{
-    position:absolute; inset:0; pointer-events:none; z-index:8;
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce){
+    :root{ --spin-ms: 1400ms }
+    .spinning .pointer{ animation:none }
+    *{ scroll-behavior:auto !important }
   }
 
-  /* Reduced motion preference respected */
-  @media (prefers-reduced-motion: reduce){
-    :root{ --spin-ms: 1400ms; }
-  }
-  
-  /* Mobile responsiveness */
+  /* Mobile tweaks */
   @media (max-width: 640px) {
-    .controls {
-      flex-direction: column;
-    }
-    
-    .readout {
-      order: 3;
-      width: 100%;
-    }
+    .controls{ flex-direction: column }
+    .readout{ order:3; width:100% }
   }
+
+  /* SVG text legibility chip */
+  .label-chip{
+    fill: rgba(255,255,255,.92);
+    stroke: rgba(0,0,0,.10);
+    stroke-width:.3;
+    rx:4; ry:4;
+  }
+
+  /* Focus visible on the main buttons for keyboard users */
+  #spinBtn:focus-visible, #resetBtn:focus-visible{
+    outline:none; box-shadow: var(--focus);
+  }
+
+  /* (Unused now) wobble animation kept for reference
+  .spinning .pointer{ animation: wobble .26s ease-in-out infinite; transform-origin: 50% 120%; }
+  @keyframes wobble{
+    0%,100%{ transform: translateX(-50%) rotate(178deg) }
+    50%{ transform: translateX(-50%) rotate(182deg) }
+  } */
 </style>
 </head>
 <body>
   <main class="app" role="main" aria-label="ABSA Prize Wheel">
-    <div class="absa-header">
-      <div class="absa-logo">ABSA<span>•</span>BANK</div>
+    <div class="absa-header" role="banner">
+      <div class="absa-logo" aria-label="ABSA Bank">ABSA<span>•</span>BANK</div>
     </div>
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win exciting rewards. Four prizes with "Try Again" and "Extra Spin" opportunities.</p>
+      <p class="sub">Spin to win classic rewards. Four prizes plus “Try Again” and “Extra Spin”. Simple. Fair. Fun.</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -245,47 +280,53 @@
       <canvas id="confetti"></canvas>
 
       <!-- SVG Wheel -->
-      <div class="wheel-wrap">
+      <div class="wheel-wrap" aria-hidden="false">
         <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 8 segments">
-          <!-- base / rim -->
           <defs>
-            <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <!-- rim -->
+            <radialGradient id="rim" cx="50%" cy="50%" r="60%">
               <stop offset="0%" stop-color="#ffffff"/>
-              <stop offset="100%" stop-color="#f0f0f0"/>
-            </linearGradient>
-            
+              <stop offset="60%" stop-color="#f3f3f3"/>
+              <stop offset="100%" stop-color="#e9e9e9"/>
+            </radialGradient>
+            <!-- red -->
             <linearGradient id="absa-red-grad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stop-color="#E41E2D"/>
               <stop offset="100%" stop-color="#c11a26"/>
             </linearGradient>
-            
-            <!-- Gloss effect for wheel -->
+            <!-- gloss -->
             <radialGradient id="gloss" cx="30%" cy="30%" r="70%">
-              <stop offset="0%" stop-color="white" stop-opacity="0.2"/>
+              <stop offset="0%" stop-color="white" stop-opacity="0.22"/>
               <stop offset="100%" stop-color="white" stop-opacity="0"/>
+            </radialGradient>
+            <!-- inner ring sheen -->
+            <radialGradient id="inner" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#fafafa"/>
+              <stop offset="100%" stop-color="#eaeaea"/>
             </radialGradient>
           </defs>
 
-          <circle r="49" fill="url(#rim)" stroke="#e0e0e0" stroke-width="1"></circle>
-          <g id="segments"></g>
+          <!-- outer rim -->
+          <circle r="49" fill="url(#rim)" stroke="rgba(0,0,0,.08)" stroke-width="1"></circle>
 
-          <!-- tick marks for clarity -->
-          <g id="ticks" stroke="#000" stroke-opacity=".15" stroke-width=".3"></g>
+          <!-- inner ring to add depth -->
+          <circle r="44.2" fill="url(#inner)" stroke="#ddd" stroke-width=".6"></circle>
+
+          <g id="segments"></g>
+          <g id="ticks" stroke="#000" stroke-opacity=".12" stroke-width=".28"></g>
 
           <!-- hub -->
-          <circle r="10.5" fill="var(--absa-dark)" stroke="#555" stroke-width="1.2"></circle>
-          <circle r="6.8" fill="var(--absa-red)" stroke="#fff" stroke-width=".8"></circle>
-          
-          <!-- ABSA logo in center -->
-          <text y="2" text-anchor="middle" fill="white" font-size="4" font-weight="700">ABSA</text>
-          
-          <!-- Gloss effect overlay -->
-          <circle r="49" fill="url(#gloss)" stroke="none"></circle>
+          <circle r="10.8" fill="#0f0f10" stroke="#4a4a4a" stroke-width="1.1"></circle>
+          <circle r="7.2" fill="url(#absa-red-grad)" stroke="#fff" stroke-width=".8"></circle>
+          <text y="2" text-anchor="middle" fill="white" font-size="3.2" font-weight="800" aria-hidden="true">ABSA</text>
+
+          <!-- gloss -->
+          <circle r="49" fill="url(#gloss)" stroke="none" pointer-events="none"></circle>
         </svg>
       </div>
     </section>
 
-    <section class="controls">
+    <section class="controls" aria-label="Controls">
       <button id="spinBtn" type="button" aria-controls="wheel" aria-label="Start spin (or press Space)">🎯 Spin Wheel</button>
       <button id="resetBtn" type="button" aria-label="Reset wheel">↺ Reset Wheel</button>
       <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
@@ -330,7 +371,7 @@ const segments = [
 
 /* ABSA Color palette */
 const FILL_A = '#ffffff';
-const FILL_B = '#f5f5f5';
+const FILL_B = '#f7f7f7';
 const TEXT_WIN = '#E41E2D';
 const TEXT_TRY = '#666666';
 const TEXT_EXTRA = '#000000';
@@ -351,28 +392,25 @@ function describeSlice(startDeg, endDeg, radius){
 function addTextAt(angleDeg, text, color){
   const anchor = polarToXY(angleDeg, TXT_R);
   const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)}) rotate(0)`);
+  g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)})`);
   const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
   const t  = document.createElementNS('http://www.w3.org/2000/svg','text');
 
   t.textContent = text;
   t.setAttribute('fill', color);
-  t.setAttribute('font-size', '3.5'); // Reduced from 4
-  t.setAttribute('font-weight', '700'); // Slightly less bold
+  t.setAttribute('font-size', '2.6');   // smaller labels (was 3.5)
+  t.setAttribute('font-weight', '800');
   t.setAttribute('text-anchor','middle');
   t.setAttribute('dominant-baseline','central');
 
-  // measure-ish: add padding rect for contrast
-  const padX = Math.max(10, text.length * 1.8); // Reduced padding
-  const padY = 6; // Reduced height
+  // chip bg for legibility
+  const padX = Math.max(10, text.length * 1.8);
+  const padY = 6;
   bg.setAttribute('x', (-padX/2).toString());
   bg.setAttribute('y', (-padY/2).toString());
   bg.setAttribute('width', padX.toString());
   bg.setAttribute('height', padY.toString());
-  bg.setAttribute('rx','4');
-  bg.setAttribute('fill','rgba(255,255,255,0.92)'); // Slightly more opaque
-  bg.setAttribute('stroke','rgba(0,0,0,.1)');
-  bg.setAttribute('stroke-width','.3');
+  bg.setAttribute('class','label-chip');
 
   g.appendChild(bg);
   g.appendChild(t);
@@ -392,15 +430,13 @@ function buildWheel(){
     // slice
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d', describeSlice(start, end, R));
-    
     // Use ABSA red for winning segments, alternating light colors for others
     if (seg.type === 'win') {
       path.setAttribute('fill', 'url(#absa-red-grad)');
     } else {
       path.setAttribute('fill', (i % 2 === 0) ? FILL_A : FILL_B);
     }
-    
-    path.setAttribute('stroke', '#e0e0e0');
+    path.setAttribute('stroke', 'rgba(0,0,0,.08)');
     path.setAttribute('stroke-width', '.6');
     SEG_GROUP.appendChild(path);
 
@@ -418,8 +454,8 @@ function buildWheel(){
     tick.setAttribute('y1', a.y.toFixed(2));
     tick.setAttribute('x2', b.x.toFixed(2));
     tick.setAttribute('y2', b.y.toFixed(2));
-    tick.setAttribute('stroke', 'rgba(0,0,0,.1)');
-    tick.setAttribute('stroke-width', '.5');
+    tick.setAttribute('stroke', 'rgba(0,0,0,.12)');
+    tick.setAttribute('stroke-width', '.45');
     TICK_GROUP.appendChild(tick);
   }
 }
@@ -432,18 +468,23 @@ function pickIndexFair(){
 
 function celebrate(){
   const ctx = CONFETTI.getContext('2d');
-  const {width, height} = CONFETTI.getBoundingClientRect();
-  CONFETTI.width = width * devicePixelRatio;
-  CONFETTI.height = height * devicePixelRatio;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
+  const rect = document.querySelector('.stage').getBoundingClientRect();
+  const width = rect.width, height = rect.height;
 
-  const pieces = Array.from({length: 100}, () => ({
+  // scale for crispness
+  const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+  CONFETTI.width = width * dpr;
+  CONFETTI.height = height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const pieces = Array.from({length: 120}, () => ({
     x: Math.random()*width,
     y: -10 + Math.random()*10,
-    r: 2 + Math.random()*3,
+    w: 3 + Math.random()*4,
+    h: 6 + Math.random()*6,
     v: 2 + Math.random()*3,
     a: Math.random()*FULL,
-    s: 1 + Math.random()*2
+    s: 2 + Math.random()*3
   }));
 
   let frames = 0;
@@ -456,11 +497,11 @@ function celebrate(){
       ctx.translate(p.x, p.y);
       ctx.rotate(p.a*Math.PI/180);
       ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
-      ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2);
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
       ctx.restore();
     });
     frames++;
-    if (frames < 90) requestAnimationFrame(step);
+    if (frames < 100) requestAnimationFrame(step);
     else ctx.clearRect(0,0,width,height);
   }
   step();
@@ -468,19 +509,15 @@ function celebrate(){
 
 function showToast(html, nice=false){
   TOAST.innerHTML = html;
-  if (nice) {
-    TOAST.classList.add('win');
-    celebrate();
-  } else {
-    TOAST.classList.remove('win');
-  }
+  TOAST.classList.toggle('win', !!nice);
   TOAST.classList.add('show');
-  setTimeout(()=> TOAST.classList.remove('show'), 2400);
+  setTimeout(()=> TOAST.classList.remove('show'), 2600);
 }
 
 function spin(){
   if (spinning) return;
   spinning = true;
+  document.body.classList.add('spinning');
   BTN_SPIN.disabled = true;
   BTN_RESET.disabled = true;
   STATUS.innerHTML = 'Spinning…';
@@ -508,11 +545,10 @@ function spin(){
   setTimeout(()=>{
     const result = segments[idx];
     let msg;
-    let toast;
     if (result.type === 'win'){
       msg = `🎉 You won <strong>${result.label}</strong>!`;
-      toast = `Congratulations! You won: <strong>${result.label}</strong>`;
-      showToast(toast, true);
+      showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
+      celebrate();
     } else if (result.type === 'extra'){
       msg = `↻ <strong>${result.label}</strong> — spin again!`;
       showToast('Extra spin unlocked! Try again.', false);
@@ -522,6 +558,7 @@ function spin(){
     }
     STATUS.innerHTML = msg;
     spinning = false;
+    document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
     BTN_RESET.disabled = false;
   }, dur + 60);
@@ -529,7 +566,7 @@ function spin(){
 
 function resetWheel(){
   if (spinning) return;
-  WHEEL.style.transition = 'transform 400ms ease';
+  WHEEL.style.transition = 'transform 380ms ease';
   WHEEL.style.transform = 'rotate(0deg)';
   currentRotation = 0;
   STATUS.innerHTML = 'Wheel reset. Press <strong>Spin Wheel</strong> to play.';
@@ -552,10 +589,11 @@ document.addEventListener('keydown', (e)=>{
 /* Make confetti canvas match stage */
 function sizeConfetti(){
   const rect = document.querySelector('.stage').getBoundingClientRect();
+  // regular size; drawing scale handled in celebrate()
   CONFETTI.width = rect.width;
   CONFETTI.height = rect.height;
 }
-window.addEventListener('resize', sizeConfetti);
+window.addEventListener('resize', sizeConfetti, { passive:true });
 sizeConfetti();
 
 </script>
