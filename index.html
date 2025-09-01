@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ABSA Prize Wheel</title>
+<style>
+  :root{
+    /* ABSA Brand Colors */
+    --absa-red: #E41E2D;
+    --absa-dark: #000000;
+    --absa-gray: #333333;
+    --absa-light: #F5F5F5;
+    --absa-gold: #FFC72C;
+    --absa-silver: #D9D9D9;
+    
+    /* Theme */
+    --bg: var(--absa-light);
+    --panel: #ffffff;
+    --panel-2: #f0f0f0;
+    --text: var(--absa-dark);
+    --muted: #666666;
+    --accent: var(--absa-red);
+    --ring: #e0e0e0;
+
+    /* Wheel */
+    --wheel-size: min(76vmin, 640px);
+    --hub-size: 92px;
+    --pointer-size: 34px;
+    --tick-size: 8px;
+
+    /* Motion */
+    --spin-ms: 4300ms;
+    --bezier: cubic-bezier(.15,.9,.1,1);
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{
+    margin:0;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    color:var(--text);
+    background: var(--bg);
+    display:grid;
+    place-items:center;
+    padding:20px;
+  }
+
+  .app{
+    width:min(100%, 980px);
+    display:grid;
+    gap:24px;
+    justify-items:center;
+    text-align:center;
+  }
+
+  h1{
+    margin:0 0 4px 0;
+    font-size:clamp(24px,3.6vmin,36px);
+    font-weight:800;
+    color: var(--absa-red);
+  }
+  .sub{
+    margin:0;
+    color:var(--muted);
+    font-size:clamp(14px,2vmin,17px);
+    max-width: 600px;
+    line-height: 1.5;
+  }
+
+  /* ABSA Header Bar */
+  .absa-header {
+    width: 100%;
+    background: var(--absa-dark);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .absa-logo {
+    font-weight: 800;
+    font-size: 24px;
+    letter-spacing: 1px;
+  }
+  
+  .absa-logo span {
+    color: var(--absa-red);
+  }
+
+  /* Stage */
+  .stage{
+    position:relative;
+    width:var(--wheel-size);
+    aspect-ratio:1/1;
+  }
+
+  /* Canvas/SVG wrapper for crispness */
+  .wheel-wrap{
+    position:absolute; inset:0;
+    display:grid; place-items:center;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));
+  }
+
+  /* Pointer - positioned at top */
+  .pointer{
+    position:absolute; top: -6px; left:50%;
+    transform: translateX(-50%) rotate(180deg);
+    width:0; height:0;
+    border-left: var(--pointer-size) solid transparent;
+    border-right: var(--pointer-size) solid transparent;
+    border-bottom: calc(var(--pointer-size) * 1.6) solid var(--accent);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+    z-index:6;
+  }
+  .pointer::after{
+    content:"";
+    position:absolute; left:calc(-.5 * var(--pointer-size)); top:calc(var(--pointer-size) * 1.25);
+    width: calc(var(--pointer-size)); height: calc(var(--pointer-size));
+    border-radius:50%; background:var(--absa-dark);
+    outline: 2px solid var(--accent);
+  }
+
+  /* Controls */
+  .controls{
+    display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center;
+    background:var(--panel);
+    padding:20px 24px;
+    border-radius:16px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid var(--ring);
+    width:min(100%, 760px);
+  }
+  button{
+    appearance:none; border:0; cursor:pointer;
+    padding:14px 24px; border-radius:12px;
+    font-weight:700; 
+    letter-spacing:.2px;
+    background: var(--absa-red);
+    color:white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+    min-width: 140px;
+  }
+  button:hover{ 
+    background: #c11a26;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  }
+  button:active{ 
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  button[disabled]{ 
+    opacity:.6; 
+    cursor:not-allowed;
+    background: var(--muted);
+  }
+  
+  #resetBtn {
+    background: var(--absa-gray);
+  }
+  
+  #resetBtn:hover {
+    background: #222;
+  }
+
+  .readout{ 
+    flex: 1 1 280px; 
+    text-align:center; 
+    color:var(--muted); 
+    font-weight:600;
+    padding: 8px 12px;
+    background: var(--panel-2);
+    border-radius: 8px;
+  }
+  .readout strong{ color:var(--absa-red) }
+
+  /* Toast result */
+  .toast{
+    position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(20px);
+    background: white;
+    color:var(--text); 
+    border-radius:12px; 
+    padding:16px 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    border: 1px solid var(--ring);
+    opacity:0; 
+    pointer-events:none; 
+    transition: all .35s var(--bezier);
+    max-width:min(90vw, 560px);
+    font-weight: 600;
+    text-align: center;
+    z-index: 100;
+  }
+  .toast.win {
+    background: var(--absa-red);
+    color: white;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+
+  /* Confetti canvas sits on top when celebrating */
+  #confetti{
+    position:absolute; inset:0; pointer-events:none; z-index:8;
+  }
+
+  /* Reduced motion preference respected */
+  @media (prefers-reduced-motion: reduce){
+    :root{ --spin-ms: 1400ms; }
+  }
+  
+  /* Mobile responsiveness */
+  @media (max-width: 640px) {
+    .controls {
+      flex-direction: column;
+    }
+    
+    .readout {
+      order: 3;
+      width: 100%;
+    }
+  }
+</style>
+</head>
+<body>
+  <main class="app" role="main" aria-label="ABSA Prize Wheel">
+    <div class="absa-header">
+      <div class="absa-logo">ABSA<span>•</span>BANK</div>
+    </div>
+    
+    <header>
+      <h1>ABSA Prize Wheel</h1>
+      <p class="sub">Spin to win exciting rewards. Four prizes with "Try Again" and "Extra Spin" opportunities.</p>
+    </header>
+
+    <section class="stage" aria-live="polite">
+      <div class="pointer" aria-hidden="true"></div>
+
+      <!-- Confetti layer -->
+      <canvas id="confetti"></canvas>
+
+      <!-- SVG Wheel -->
+      <div class="wheel-wrap">
+        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 8 segments">
+          <!-- base / rim -->
+          <defs>
+            <linearGradient id="rim" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#f0f0f0"/>
+            </linearGradient>
+            
+            <linearGradient id="absa-red-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E41E2D"/>
+              <stop offset="100%" stop-color="#c11a26"/>
+            </linearGradient>
+            
+            <!-- Gloss effect for wheel -->
+            <radialGradient id="gloss" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="white" stop-opacity="0.2"/>
+              <stop offset="100%" stop-color="white" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <circle r="49" fill="url(#rim)" stroke="#e0e0e0" stroke-width="1"></circle>
+          <g id="segments"></g>
+
+          <!-- tick marks for clarity -->
+          <g id="ticks" stroke="#000" stroke-opacity=".15" stroke-width=".3"></g>
+
+          <!-- hub -->
+          <circle r="10.5" fill="var(--absa-dark)" stroke="#555" stroke-width="1.2"></circle>
+          <circle r="6.8" fill="var(--absa-red)" stroke="#fff" stroke-width=".8"></circle>
+          
+          <!-- ABSA logo in center -->
+          <text y="2" text-anchor="middle" fill="white" font-size="4" font-weight="700">ABSA</text>
+          
+          <!-- Gloss effect overlay -->
+          <circle r="49" fill="url(#gloss)" stroke="none"></circle>
+        </svg>
+      </div>
+    </section>
+
+    <section class="controls">
+      <button id="spinBtn" type="button" aria-controls="wheel" aria-label="Start spin (or press Space)">🎯 Spin Wheel</button>
+      <button id="resetBtn" type="button" aria-label="Reset wheel">↺ Reset Wheel</button>
+      <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="assertive"></div>
+  </main>
+
+<script>
+/* ======= CONFIG ======= */
+const PRIZES = ["R100 Gift Card", "Movie Tickets", "Coffee Hamper", "ABSA Merch Pack"];
+
+const WHEEL = document.getElementById('wheel');
+const SEG_GROUP = document.getElementById('segments');
+const TICK_GROUP = document.getElementById('ticks');
+const STATUS = document.getElementById('status');
+const BTN_SPIN = document.getElementById('spinBtn');
+const BTN_RESET = document.getElementById('resetBtn');
+const TOAST = document.getElementById('toast');
+const CONFETTI = document.getElementById('confetti');
+
+const SEG_SIZE = 45;               // degrees per segment (8 total)
+const CENTER_OFFSET = SEG_SIZE/2;  // 22.5°
+const FULL = 360;
+const R = 46;     // slice radius inside rim
+const TXT_R = 30; // text radius for readability
+
+let spinning = false;
+let currentRotation = 0;
+
+/* Build segments list */
+const segments = [
+  { label: PRIZES[0], type: 'win' },
+  { label: 'Try Again', type: 'try' },
+  { label: PRIZES[1], type: 'win' },
+  { label: 'Extra Spin', type: 'extra' },
+  { label: PRIZES[2], type: 'win' },
+  { label: 'Try Again', type: 'try' },
+  { label: PRIZES[3], type: 'win' },
+  { label: 'Extra Spin', type: 'extra' },
+];
+
+/* ABSA Color palette */
+const FILL_A = '#ffffff';
+const FILL_B = '#f5f5f5';
+const TEXT_WIN = '#E41E2D';
+const TEXT_TRY = '#666666';
+const TEXT_EXTRA = '#000000';
+
+/* ======= SVG helpers ======= */
+function polarToXY(deg, radius){
+  const rad = (deg - 90) * Math.PI / 180; // start from top
+  return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
+}
+
+function describeSlice(startDeg, endDeg, radius){
+  const start = polarToXY(startDeg, radius);
+  const end   = polarToXY(endDeg, radius);
+  const large = endDeg - startDeg <= 180 ? 0 : 1;
+  return `M 0 0 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
+}
+
+function addTextAt(angleDeg, text, color){
+  const anchor = polarToXY(angleDeg, TXT_R);
+  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)}) rotate(0)`);
+  const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+  const t  = document.createElementNS('http://www.w3.org/2000/svg','text');
+
+  t.textContent = text;
+  t.setAttribute('fill', color);
+  t.setAttribute('font-size', '3.5'); // Reduced from 4
+  t.setAttribute('font-weight', '700'); // Slightly less bold
+  t.setAttribute('text-anchor','middle');
+  t.setAttribute('dominant-baseline','central');
+
+  // measure-ish: add padding rect for contrast
+  const padX = Math.max(10, text.length * 1.8); // Reduced padding
+  const padY = 6; // Reduced height
+  bg.setAttribute('x', (-padX/2).toString());
+  bg.setAttribute('y', (-padY/2).toString());
+  bg.setAttribute('width', padX.toString());
+  bg.setAttribute('height', padY.toString());
+  bg.setAttribute('rx','4');
+  bg.setAttribute('fill','rgba(255,255,255,0.92)'); // Slightly more opaque
+  bg.setAttribute('stroke','rgba(0,0,0,.1)');
+  bg.setAttribute('stroke-width','.3');
+
+  g.appendChild(bg);
+  g.appendChild(t);
+  SEG_GROUP.appendChild(g);
+}
+
+function buildWheel(){
+  SEG_GROUP.innerHTML = '';
+  TICK_GROUP.innerHTML = '';
+
+  for (let i=0; i<8; i++){
+    const start = i * SEG_SIZE;
+    const end   = (i+1) * SEG_SIZE;
+    const center= start + CENTER_OFFSET;
+    const seg   = segments[i];
+
+    // slice
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', describeSlice(start, end, R));
+    
+    // Use ABSA red for winning segments, alternating light colors for others
+    if (seg.type === 'win') {
+      path.setAttribute('fill', 'url(#absa-red-grad)');
+    } else {
+      path.setAttribute('fill', (i % 2 === 0) ? FILL_A : FILL_B);
+    }
+    
+    path.setAttribute('stroke', '#e0e0e0');
+    path.setAttribute('stroke-width', '.6');
+    SEG_GROUP.appendChild(path);
+
+    // text
+    let color = TEXT_EXTRA;
+    if (seg.type === 'win')  color = TEXT_WIN;
+    if (seg.type === 'try')  color = TEXT_TRY;
+    addTextAt(center, seg.label, color);
+
+    // tick marks
+    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
+    const a = polarToXY(start, R+0.2);
+    const b = polarToXY(start, R-4);
+    tick.setAttribute('x1', a.x.toFixed(2));
+    tick.setAttribute('y1', a.y.toFixed(2));
+    tick.setAttribute('x2', b.x.toFixed(2));
+    tick.setAttribute('y2', b.y.toFixed(2));
+    tick.setAttribute('stroke', 'rgba(0,0,0,.1)');
+    tick.setAttribute('stroke-width', '.5');
+    TICK_GROUP.appendChild(tick);
+  }
+}
+buildWheel();
+
+/* ======= Spin Logic ======= */
+function pickIndexFair(){
+  return Math.floor(Math.random() * segments.length);
+}
+
+function celebrate(){
+  const ctx = CONFETTI.getContext('2d');
+  const {width, height} = CONFETTI.getBoundingClientRect();
+  CONFETTI.width = width * devicePixelRatio;
+  CONFETTI.height = height * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  const pieces = Array.from({length: 100}, () => ({
+    x: Math.random()*width,
+    y: -10 + Math.random()*10,
+    r: 2 + Math.random()*3,
+    v: 2 + Math.random()*3,
+    a: Math.random()*FULL,
+    s: 1 + Math.random()*2
+  }));
+
+  let frames = 0;
+  function step(){
+    ctx.clearRect(0,0,width,height);
+    pieces.forEach(p=>{
+      p.y += p.v;
+      p.a += p.s;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.a*Math.PI/180);
+      ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
+      ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2);
+      ctx.restore();
+    });
+    frames++;
+    if (frames < 90) requestAnimationFrame(step);
+    else ctx.clearRect(0,0,width,height);
+  }
+  step();
+}
+
+function showToast(html, nice=false){
+  TOAST.innerHTML = html;
+  if (nice) {
+    TOAST.classList.add('win');
+    celebrate();
+  } else {
+    TOAST.classList.remove('win');
+  }
+  TOAST.classList.add('show');
+  setTimeout(()=> TOAST.classList.remove('show'), 2400);
+}
+
+function spin(){
+  if (spinning) return;
+  spinning = true;
+  BTN_SPIN.disabled = true;
+  BTN_RESET.disabled = true;
+  STATUS.innerHTML = 'Spinning…';
+
+  const idx = pickIndexFair();
+  const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
+
+  // add several full turns for satisfaction
+  const fullTurns = 8 + Math.floor(Math.random()*4); // 8–11
+  const jitter = (Math.random()*6) - 3; // ±3°
+
+  // We rotate from currentRotation to newRotation
+  const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
+
+  // animate via CSS transform on the SVG element container
+  const node = WHEEL;
+  node.style.transition = `transform var(--spin-ms) var(--bezier)`;
+  node.style.transform = `rotate(${finalRotation}deg)`;
+  currentRotation = finalRotation;
+
+  // After spin ends, announce result
+  const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
+  const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
+
+  setTimeout(()=>{
+    const result = segments[idx];
+    let msg;
+    let toast;
+    if (result.type === 'win'){
+      msg = `🎉 You won <strong>${result.label}</strong>!`;
+      toast = `Congratulations! You won: <strong>${result.label}</strong>`;
+      showToast(toast, true);
+    } else if (result.type === 'extra'){
+      msg = `↻ <strong>${result.label}</strong> — spin again!`;
+      showToast('Extra spin unlocked! Try again.', false);
+    } else {
+      msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
+      showToast('Try again — your next spin could be a winner!', false);
+    }
+    STATUS.innerHTML = msg;
+    spinning = false;
+    BTN_SPIN.disabled = false;
+    BTN_RESET.disabled = false;
+  }, dur + 60);
+}
+
+function resetWheel(){
+  if (spinning) return;
+  WHEEL.style.transition = 'transform 400ms ease';
+  WHEEL.style.transform = 'rotate(0deg)';
+  currentRotation = 0;
+  STATUS.innerHTML = 'Wheel reset. Press <strong>Spin Wheel</strong> to play.';
+}
+
+/* ======= Events & A11y ======= */
+BTN_SPIN.addEventListener('click', spin);
+BTN_RESET.addEventListener('click', resetWheel);
+
+document.addEventListener('keydown', (e)=>{
+  // Space or Enter will spin; R resets
+  if (e.code === 'Space' || e.key === 'Enter'){
+    e.preventDefault();
+    spin();
+  } else if ((e.key === 'r' || e.key === 'R') && !spinning){
+    resetWheel();
+  }
+});
+
+/* Make confetti canvas match stage */
+function sizeConfetti(){
+  const rect = document.querySelector('.stage').getBoundingClientRect();
+  CONFETTI.width = rect.width;
+  CONFETTI.height = rect.height;
+}
+window.addEventListener('resize', sizeConfetti);
+sizeConfetti();
+
+</script>
+</body>
+</html>
