@@ -16,7 +16,7 @@
     --absa-silver:#D9D9D9;
 
     /* Theme */
-    --bg: var(--absa-light);
+    --bg: #ffffff; /* Changed to white */
     --panel:#ffffff;
     --panel-2:#f3f3f3;
     --text: var(--absa-dark);
@@ -40,12 +40,12 @@
 
   @media (prefers-color-scheme: dark){
     :root{
-      --bg: #0e0e0f;
-      --panel:#121213;
-      --panel-2:#1a1a1b;
-      --text:#f7f7f7;
-      --muted:#b4b4b4;
-      --ring:#262627;
+      --bg: #ffffff; /* Force white background even in dark mode */
+      --panel:#ffffff;
+      --panel-2:#f3f3f3;
+      --text:#333333; /* Darker text for better contrast on white */
+      --muted:#666666;
+      --ring:#e6e6e6;
     }
   }
 
@@ -55,10 +55,7 @@
     margin:0;
     font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     color:var(--text);
-    background:
-      radial-gradient(1200px 800px at 50% -10%, rgba(255, 251, 251, 0.12), transparent 60%),
-      radial-gradient(900px 600px at 10% 120%, rgba(252, 251, 251, 0.08), transparent 60%),
-      var(--bg);
+    background: var(--bg); /* Simplified to just white background */
     display:grid;
     place-items:center;
     padding:22px;
@@ -270,7 +267,7 @@
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win classic rewards. Four prizes plus “Try Again” and “Extra Spin”. Simple. Fair. Fun.</p>
+      <p class="sub">Spin to win classic rewards. Four prizes plus "Oops" messages. Simple. Fair. Fun.</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -339,6 +336,14 @@
 /* ======= CONFIG ======= */
 const PRIZES = ["Bucket Hat", "Tumbler", "Notebook", "Cooler Bag"];
 
+// Daily limits for prizes
+const DAILY_LIMITS = {
+  "Bucket Hat": 10,
+  "Tumbler": 15,
+  "Notebook": 20,
+  "Cooler Bag": 5
+};
+
 const WHEEL = document.getElementById('wheel');
 const SEG_GROUP = document.getElementById('segments');
 const TICK_GROUP = document.getElementById('ticks');
@@ -357,24 +362,85 @@ const TXT_R = 30; // text radius for readability
 let spinning = false;
 let currentRotation = 0;
 
-/* Build segments list */
+// Track daily wins
+let dailyWins = {
+  "Bucket Hat": 0,
+  "Tumbler": 0,
+  "Notebook": 0,
+  "Cooler Bag": 0,
+  total: 0
+};
+
+// Load saved daily wins from localStorage
+function loadDailyWins() {
+  const today = new Date().toDateString();
+  const savedData = localStorage.getItem('absaWheelDailyWins');
+  
+  if (savedData) {
+    const parsedData = JSON.parse(savedData);
+    // If saved data is from today, use it
+    if (parsedData.date === today) {
+      dailyWins = parsedData.wins;
+      updateStatusWithLimits();
+      return;
+    }
+  }
+  
+  // Reset if no saved data or data is from a different day
+  resetDailyWins();
+}
+
+// Save daily wins to localStorage
+function saveDailyWins() {
+  const today = new Date().toDateString();
+  const dataToSave = {
+    date: today,
+    wins: dailyWins
+  };
+  localStorage.setItem('absaWheelDailyWins', JSON.stringify(dataToSave));
+}
+
+// Reset daily wins
+function resetDailyWins() {
+  dailyWins = {
+    "Bucket Hat": 0,
+    "Tumbler": 0,
+    "Notebook": 0,
+    "Cooler Bag": 0,
+    total: 0
+  };
+  saveDailyWins();
+  updateStatusWithLimits();
+}
+
+// Update status with daily limits info
+function updateStatusWithLimits() {
+  const remainingText = `Today: ${dailyWins.total}/50 prizes won`;
+  STATUS.innerHTML = `Ready. ${remainingText} Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.`;
+}
+
+// Check if a prize is still available
+function isPrizeAvailable(prize) {
+  return dailyWins[prize] < DAILY_LIMITS[prize] && dailyWins.total < 50;
+}
+
+// Build segments list with lose messages instead of try again/extra spin
 const segments = [
   { label: PRIZES[0], type: 'win' },
-  { label: 'Try Again', type: 'try' },
+  { label: 'Oops!', type: 'lose' },
   { label: PRIZES[1], type: 'win' },
-  { label: 'Extra Spin', type: 'extra' },
+  { label: 'Better luck!', type: 'lose' },
   { label: PRIZES[2], type: 'win' },
-  { label: 'Try Again', type: 'try' },
+  { label: 'Almost!', type: 'lose' },
   { label: PRIZES[3], type: 'win' },
-  { label: 'Extra Spin', type: 'extra' },
+  { label: 'Next time!', type: 'lose' },
 ];
 
 /* ABSA Color palette */
 const FILL_A = '#ffffff';
 const FILL_B = '#f7f7f7';
 const TEXT_WIN = '#E41E2D';
-const TEXT_TRY = '#666666';
-const TEXT_EXTRA = '#000000';
+const TEXT_LOSE = '#666666';
 
 /* ======= SVG helpers ======= */
 function polarToXY(deg, radius){
@@ -441,9 +507,8 @@ function buildWheel(){
     SEG_GROUP.appendChild(path);
 
     // text
-    let color = TEXT_EXTRA;
+    let color = TEXT_LOSE;
     if (seg.type === 'win')  color = TEXT_WIN;
-    if (seg.type === 'try')  color = TEXT_TRY;
     addTextAt(center, seg.label, color);
 
     // tick marks
@@ -463,7 +528,24 @@ buildWheel();
 
 /* ======= Spin Logic ======= */
 function pickIndexFair(){
-  return Math.floor(Math.random() * segments.length);
+  // If all prizes are claimed for the day, always return a lose segment
+  if (dailyWins.total >= 50) {
+    // Return a random lose segment (odd indices: 1, 3, 5, 7)
+    const loseIndices = [1, 3, 5, 7];
+    return loseIndices[Math.floor(Math.random() * loseIndices.length)];
+  }
+  
+  // Otherwise, pick a random segment
+  let selectedIndex = Math.floor(Math.random() * segments.length);
+  const selectedSegment = segments[selectedIndex];
+  
+  // If it's a win segment but the prize is no longer available, find a lose segment
+  if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
+    const loseIndices = [1, 3, 5, 7];
+    selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+  }
+  
+  return selectedIndex;
 }
 
 function celebrate(){
@@ -545,18 +627,23 @@ function spin(){
   setTimeout(()=>{
     const result = segments[idx];
     let msg;
-    if (result.type === 'win'){
+    
+    if (result.type === 'win' && isPrizeAvailable(result.label)){
+      // Award the prize
+      dailyWins[result.label]++;
+      dailyWins.total++;
+      saveDailyWins();
+      
       msg = `🎉 You won <strong>${result.label}</strong>!`;
       showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
       celebrate();
-    } else if (result.type === 'extra'){
-      msg = `↻ <strong>${result.label}</strong> — spin again!`;
-      showToast('Extra spin unlocked! Try again.', false);
     } else {
+      // Show lose message
       msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
       showToast('Try again — your next spin could be a winner!', false);
     }
-    STATUS.innerHTML = msg;
+    
+    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/50 prizes won.`;
     spinning = false;
     document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
@@ -569,7 +656,7 @@ function resetWheel(){
   WHEEL.style.transition = 'transform 380ms ease';
   WHEEL.style.transform = 'rotate(0deg)';
   currentRotation = 0;
-  STATUS.innerHTML = 'Wheel reset. Press <strong>Spin Wheel</strong> to play.';
+  updateStatusWithLimits();
 }
 
 /* ======= Events & A11y ======= */
@@ -593,8 +680,11 @@ function sizeConfetti(){
   CONFETTI.width = rect.width;
   CONFETTI.height = rect.height;
 }
+
+// Initialize
 window.addEventListener('resize', sizeConfetti, { passive:true });
 sizeConfetti();
+loadDailyWins(); // Load daily wins when page loads
 
 </script>
 </body>
