@@ -251,6 +251,41 @@
     outline:none; box-shadow: var(--focus);
   }
 
+  /* Prize counter */
+  .prize-counter {
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--muted);
+    background: var(--panel-2);
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: 1px solid var(--ring);
+    width: min(100%, 820px);
+  }
+  .prize-counter h3 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    color: var(--absa-red);
+  }
+  .prize-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  .prize-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--ring);
+  }
+  .prize-name {
+    font-weight: 600;
+  }
+  .prize-count {
+    font-weight: 700;
+    color: var(--absa-red);
+  }
+
   /* (Unused now) wobble animation kept for reference
   .spinning .pointer{ animation: wobble .26s ease-in-out infinite; transform-origin: 50% 120%; }
   @keyframes wobble{
@@ -267,7 +302,7 @@
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win classic rewards. Four prizes plus "Oops" messages. Simple. Fair. Fun.</p>
+      <p class="sub">Spin to win exciting rewards. Five prizes plus "Oops" messages. Daily limits apply.</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -329,19 +364,46 @@
       <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
     </section>
 
+    <div class="prize-counter">
+      <h3>Daily Prize Limits</h3>
+      <div class="prize-grid">
+        <div class="prize-item">
+          <span class="prize-name">Pens:</span>
+          <span class="prize-count"><span id="pen-count">0</span>/50</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Cooler Bags:</span>
+          <span class="prize-count"><span id="cooler-count">0</span>/10</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Notebooks:</span>
+          <span class="prize-count"><span id="notebook-count">0</span>/20</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Bucket Hats:</span>
+          <span class="prize-count"><span id="hat-count">0</span>/10</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Tumblers:</span>
+          <span class="prize-count"><span id="tumbler-count">0</span>/5</span>
+        </div>
+      </div>
+    </div>
+
     <div id="toast" class="toast" role="status" aria-live="assertive"></div>
   </main>
 
 <script>
 /* ======= CONFIG ======= */
-const PRIZES = ["Bucket Hat", "Tumbler", "Notebook", "Cooler Bag"];
+const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler"];
 
-// Daily limits for prizes
+// Daily limits for prizes (corrected according to requirements)
 const DAILY_LIMITS = {
-  "Bucket Hat": 10,
-  "Tumbler": 15,
+  "Pen": 50,
+  "Cooler Bag": 10,
   "Notebook": 20,
-  "Cooler Bag": 5
+  "Bucket Hat": 10,
+  "Tumbler": 5
 };
 
 const WHEEL = document.getElementById('wheel');
@@ -352,6 +414,13 @@ const BTN_SPIN = document.getElementById('spinBtn');
 const BTN_RESET = document.getElementById('resetBtn');
 const TOAST = document.getElementById('toast');
 const CONFETTI = document.getElementById('confetti');
+
+// Prize counter elements
+const PEN_COUNT = document.getElementById('pen-count');
+const COOLER_COUNT = document.getElementById('cooler-count');
+const NOTEBOOK_COUNT = document.getElementById('notebook-count');
+const HAT_COUNT = document.getElementById('hat-count');
+const TUMBLER_COUNT = document.getElementById('tumbler-count');
 
 const SEG_SIZE = 45;               // degrees per segment (8 total)
 const CENTER_OFFSET = SEG_SIZE/2;  // 22.5°
@@ -364,10 +433,11 @@ let currentRotation = 0;
 
 // Track daily wins
 let dailyWins = {
+  "Pen": 0,
+  "Cooler Bag": 0,
+  "Notebook": 0,
   "Bucket Hat": 0,
   "Tumbler": 0,
-  "Notebook": 0,
-  "Cooler Bag": 0,
   total: 0
 };
 
@@ -381,6 +451,7 @@ function loadDailyWins() {
     // If saved data is from today, use it
     if (parsedData.date === today) {
       dailyWins = parsedData.wins;
+      updatePrizeCounters();
       updateStatusWithLimits();
       return;
     }
@@ -403,25 +474,43 @@ function saveDailyWins() {
 // Reset daily wins
 function resetDailyWins() {
   dailyWins = {
+    "Pen": 0,
+    "Cooler Bag": 0,
+    "Notebook": 0,
     "Bucket Hat": 0,
     "Tumbler": 0,
-    "Notebook": 0,
-    "Cooler Bag": 0,
     total: 0
   };
   saveDailyWins();
+  updatePrizeCounters();
   updateStatusWithLimits();
+}
+
+// Update prize counters display
+function updatePrizeCounters() {
+  PEN_COUNT.textContent = dailyWins["Pen"];
+  COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
+  NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
+  HAT_COUNT.textContent = dailyWins["Bucket Hat"];
+  TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
 }
 
 // Update status with daily limits info
 function updateStatusWithLimits() {
-  const remainingText = `Today: ${dailyWins.total}/50 prizes won`;
+  const remainingText = `Today: ${dailyWins.total}/95 prizes won`;
   STATUS.innerHTML = `Ready. ${remainingText} Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.`;
 }
 
 // Check if a prize is still available
 function isPrizeAvailable(prize) {
-  return dailyWins[prize] < DAILY_LIMITS[prize] && dailyWins.total < 50;
+  return dailyWins[prize] < DAILY_LIMITS[prize];
+}
+
+// Check if any prize is still available
+function arePrizesAvailable() {
+  return Object.values(DAILY_LIMITS).some((limit, index) => 
+    dailyWins[Object.keys(DAILY_LIMITS)[index]] < limit
+  );
 }
 
 // Build segments list with lose messages instead of try again/extra spin
@@ -433,7 +522,7 @@ const segments = [
   { label: PRIZES[2], type: 'win' },
   { label: 'Almost!', type: 'lose' },
   { label: PRIZES[3], type: 'win' },
-  { label: 'Next time!', type: 'lose' },
+  { label: PRIZES[4], type: 'win' },
 ];
 
 /* ABSA Color palette */
@@ -529,9 +618,9 @@ buildWheel();
 /* ======= Spin Logic ======= */
 function pickIndexFair(){
   // If all prizes are claimed for the day, always return a lose segment
-  if (dailyWins.total >= 50) {
-    // Return a random lose segment (odd indices: 1, 3, 5, 7)
-    const loseIndices = [1, 3, 5, 7];
+  if (!arePrizesAvailable()) {
+    // Return a random lose segment (indices: 1, 3, 5)
+    const loseIndices = [1, 3, 5];
     return loseIndices[Math.floor(Math.random() * loseIndices.length)];
   }
   
@@ -539,10 +628,22 @@ function pickIndexFair(){
   let selectedIndex = Math.floor(Math.random() * segments.length);
   const selectedSegment = segments[selectedIndex];
   
-  // If it's a win segment but the prize is no longer available, find a lose segment
+  // If it's a win segment but the prize is no longer available, find an available prize or lose segment
   if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
-    const loseIndices = [1, 3, 5, 7];
-    selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+    // Try to find an available prize
+    const availablePrizes = segments.filter(seg => 
+      seg.type === 'win' && isPrizeAvailable(seg.label)
+    );
+    
+    if (availablePrizes.length > 0) {
+      // Select a random available prize
+      const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+      selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
+    } else {
+      // If no prizes available, select a lose segment
+      const loseIndices = [1, 3, 5];
+      selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+    }
   }
   
   return selectedIndex;
@@ -633,8 +734,9 @@ function spin(){
       dailyWins[result.label]++;
       dailyWins.total++;
       saveDailyWins();
+      updatePrizeCounters();
       
-      msg = `🎉 You won <strong>${result.label}</strong>!`;
+      msg = `🎉 You won a <strong>${result.label}</strong>!`;
       showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
       celebrate();
     } else {
@@ -643,7 +745,7 @@ function spin(){
       showToast('Try again — your next spin could be a winner!', false);
     }
     
-    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/50 prizes won.`;
+    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/95 prizes won.`;
     spinning = false;
     document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
