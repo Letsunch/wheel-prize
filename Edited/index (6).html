@@ -256,13 +256,8 @@
 
   /* Reduced font sizes for wheel text */
   #wheel text {
-    font-size: 2.4px; /* Reduced from 2.8px */
+    font-size: 2.8px;
     font-weight: 700;
-  }
-
-  /* Even smaller font for longer text */
-  .smaller-text {
-    font-size: 2.1px !important;
   }
 </style>
 </head>
@@ -274,7 +269,7 @@
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win exciting rewards. Six prizes with "Oops" messages in between. Daily limits apply.</p>
+      <p class="sub">Spin to win exciting rewards. Five prizes with "Oops" messages in between. Daily limits apply.</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -285,7 +280,7 @@
 
       <!-- SVG Wheel -->
       <div class="wheel-wrap" aria-hidden="false">
-        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 12 segments">
+        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 10 segments">
           <defs>
             <!-- rim -->
             <radialGradient id="rim" cx="50%" cy="50%" r="60%">
@@ -350,10 +345,6 @@
           <span class="prize-name">Tumblers:</span>
           <span class="prize-count"><span id="tumbler-count">0</span>/5</span>
         </div>
-        <div class="prize-item">
-          <span class="prize-name">Vouchers:</span>
-          <span class="prize-count"><span id="voucher-count">0</span>/3</span>
-        </div>
       </div>
     </div>
 
@@ -362,8 +353,8 @@
 
 <script>
 /* ======= CONFIG ======= */
-const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
-const LOSE_MESSAGES = ["Oops!", "Better luck!", "Almost!", "Next time!", "Nope!", "Try again!"];
+const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Cash Voucher"];
+const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time"];
 
 // Daily limits for prizes
 const DAILY_LIMITS = {
@@ -372,7 +363,7 @@ const DAILY_LIMITS = {
   "Notebook": 20,
   "Bucket Hat": 10,
   "Tumbler": 5,
-  "Voucher": 3
+  "Cash Voucher": 6
 };
 
 const WHEEL = document.getElementById('wheel');
@@ -389,10 +380,10 @@ const COOLER_COUNT = document.getElementById('cooler-count');
 const NOTEBOOK_COUNT = document.getElementById('notebook-count');
 const HAT_COUNT = document.getElementById('hat-count');
 const TUMBLER_COUNT = document.getElementById('tumbler-count');
-const VOUCHER_COUNT = document.getElementById('voucher-count');
+const CASH_COUNT = document.getElementById('cash voucher');
 
-// 12 segments (30 degrees each)
-const SEG_COUNT = 12;
+// 10 segments (36 degrees each)
+const SEG_COUNT = 10;
 const SEG_SIZE = 360 / SEG_COUNT;
 const CENTER_OFFSET = SEG_SIZE/2;
 const FULL = 360;
@@ -409,7 +400,7 @@ let dailyWins = {
   "Notebook": 0,
   "Bucket Hat": 0,
   "Tumbler": 0,
-  "Voucher": 0,
+  "Cash Voucher": 0,
   total: 0
 };
 
@@ -424,9 +415,7 @@ const segments = [
   { label: PRIZES[3], type: 'win' },        // Bucket Hat
   { label: LOSE_MESSAGES[3], type: 'lose' }, // Next time!
   { label: PRIZES[4], type: 'win' },        // Tumbler
-  { label: LOSE_MESSAGES[4], type: 'lose' }, // Nope!
-  { label: PRIZES[5], type: 'win' },        // Voucher
-  { label: LOSE_MESSAGES[5], type: 'lose' }  // Try again!
+  { label: LOSE_MESSAGES[4], type: 'lose' }  // Not this time! (was Try again!)
 ];
 
 // Load saved daily wins from localStorage
@@ -460,12 +449,12 @@ function saveDailyWins() {
 // Reset daily wins
 function resetDailyWins() {
   dailyWins = {
-    "Pen": 0,
-    "Cooler Bag": 0,
     "Notebook": 0,
+    "Cooler Bag": 0,
+    "Pen": 0,
     "Bucket Hat": 0,
     "Tumbler": 0,
-    "Voucher": 0,
+    "Cash Voucher": 0,
     total: 0
   };
   saveDailyWins();
@@ -475,18 +464,17 @@ function resetDailyWins() {
 
 // Update prize counters display
 function updatePrizeCounters() {
-  PEN_COUNT.textContent = dailyWins["Pen"];
-  COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
   NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
+  COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
+  PEN_COUNT.textContent = dailyWins["Pen"];
   HAT_COUNT.textContent = dailyWins["Bucket Hat"];
   TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
-  VOUCHER_COUNT.textContent = dailyWins["Voucher"];
+  VOUCHER_COUNT.textContent = dailyWins["Cash Voucher"];
 }
 
 // Update status with daily limits info
 function updateStatusWithLimits() {
-  const totalLimit = Object.values(DAILY_LIMITS).reduce((a, b) => a + b, 0);
-  const remainingText = `Today: ${dailyWins.total}/${totalLimit} prizes won`;
+  const remainingText = `Today: ${dailyWins.total}/95 prizes won`;
   STATUS.innerHTML = `Ready. ${remainingText} Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.`;
 }
 
@@ -530,19 +518,14 @@ function addTextAt(angleDeg, text, color){
 
   t.textContent = text;
   t.setAttribute('fill', color);
-  t.setAttribute('font-size', '2.4'); // Reduced from 2.8px
-  t.setAttribute('font-weight', '700');
+  t.setAttribute('font-size', '2.8'); // Reduced from 3.2
+  t.setAttribute('font-weight', '700'); // Reduced from 800
   t.setAttribute('text-anchor','middle');
   t.setAttribute('dominant-baseline','central');
-  
-  // Apply smaller font for longer text
-  if (text.length > 8) {
-    t.setAttribute('class', 'smaller-text');
-  }
 
   // chip bg for legibility
-  const padX = Math.max(10, text.length * 1.6); // Reduced padding
-  const padY = 5; // Reduced padding
+  const padX = Math.max(10, text.length * 1.8);
+  const padY = 6;
   bg.setAttribute('x', (-padX/2).toString());
   bg.setAttribute('y', (-padY/2).toString());
   bg.setAttribute('width', padX.toString());
@@ -699,8 +682,7 @@ function spin(){
       showToast('Try again — your next spin could be a winner!', false);
     }
     
-    const totalLimit = Object.values(DAILY_LIMITS).reduce((a, b) => a + b, 0);
-    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/${totalLimit} prizes won.`;
+    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/95 prizes won.`;
     spinning = false;
     document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
