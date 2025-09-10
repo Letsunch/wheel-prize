@@ -16,7 +16,7 @@
     --absa-silver:#D9D9D9;
 
     /* Theme */
-    --bg: #ffffff; /* Changed to white */
+    --bg: #ffffff;
     --panel:#ffffff;
     --panel-2:#f3f3f3;
     --text: var(--absa-dark);
@@ -38,24 +38,13 @@
     --focus: 0 0 0 3px rgba(228,30,45,.15), 0 0 0 6px rgba(228,30,45,.12);
   }
 
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg: #ffffff; /* Force white background even in dark mode */
-      --panel:#ffffff;
-      --panel-2:#f3f3f3;
-      --text:#333333; /* Darker text for better contrast on white */
-      --muted:#666666;
-      --ring:#e6e6e6;
-    }
-  }
-
   *{ box-sizing:border-box }
   html,body{ height:100% }
   body{
     margin:0;
     font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     color:var(--text);
-    background: var(--bg); /* Simplified to just white background */
+    background: var(--bg);
     display:grid;
     place-items:center;
     padding:22px;
@@ -117,16 +106,8 @@
     display:grid; place-items:center;
     filter: drop-shadow(0 14px 28px rgba(0,0,0,.18));
   }
-  /* nice base ring shadow */
-  .wheel-wrap::after{
-    content:"";
-    position:absolute; inset:4%;
-    border-radius:50%;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 0 0 32px rgba(0,0,0,.06);
-    pointer-events:none;
-  }
 
-  /* Pointer (polished brass vibe) */
+  /* Pointer */
   .pointer{
     position:absolute; top:-2px; left:50%;
     transform: translateX(-50%) rotate(180deg);
@@ -225,32 +206,6 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
 
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce){
-    :root{ --spin-ms: 1400ms }
-    .spinning .pointer{ animation:none }
-    *{ scroll-behavior:auto !important }
-  }
-
-  /* Mobile tweaks */
-  @media (max-width: 640px) {
-    .controls{ flex-direction: column }
-    .readout{ order:3; width:100% }
-  }
-
-  /* SVG text legibility chip */
-  .label-chip{
-    fill: rgba(255,255,255,.92);
-    stroke: rgba(0,0,0,.10);
-    stroke-width:.3;
-    rx:4; ry:4;
-  }
-
-  /* Focus visible on the main buttons for keyboard users */
-  #spinBtn:focus-visible, #resetBtn:focus-visible{
-    outline:none; box-shadow: var(--focus);
-  }
-
   /* Prize counter */
   .prize-counter {
     margin-top: 10px;
@@ -286,12 +241,24 @@
     color: var(--absa-red);
   }
 
-  /* (Unused now) wobble animation kept for reference
-  .spinning .pointer{ animation: wobble .26s ease-in-out infinite; transform-origin: 50% 120%; }
-  @keyframes wobble{
-    0%,100%{ transform: translateX(-50%) rotate(178deg) }
-    50%{ transform: translateX(-50%) rotate(182deg) }
-  } */
+  /* SVG text legibility chip */
+  .label-chip{
+    fill: rgba(255,255,255,.92);
+    stroke: rgba(0,0,0,.10);
+    stroke-width:.3;
+    rx:4; ry:4;
+  }
+
+  /* Focus visible on the main buttons for keyboard users */
+  #spinBtn:focus-visible, #resetBtn:focus-visible{
+    outline:none; box-shadow: var(--focus);
+  }
+
+  /* Reduced font sizes for wheel text */
+  #wheel text {
+    font-size: 2.8px;
+    font-weight: 700;
+  }
 </style>
 </head>
 <body>
@@ -302,7 +269,7 @@
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win exciting rewards. Five prizes plus "Oops" messages. Daily limits apply.</p>
+      <p class="sub">Spin to win exciting rewards. Five prizes with "Oops" messages in between. Daily limits apply.</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -313,7 +280,7 @@
 
       <!-- SVG Wheel -->
       <div class="wheel-wrap" aria-hidden="false">
-        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 8 segments">
+        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 10 segments">
           <defs>
             <!-- rim -->
             <radialGradient id="rim" cx="50%" cy="50%" r="60%">
@@ -331,21 +298,12 @@
               <stop offset="0%" stop-color="white" stop-opacity="0.22"/>
               <stop offset="100%" stop-color="white" stop-opacity="0"/>
             </radialGradient>
-            <!-- inner ring sheen -->
-            <radialGradient id="inner" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#fafafa"/>
-              <stop offset="100%" stop-color="#eaeaea"/>
-            </radialGradient>
           </defs>
 
           <!-- outer rim -->
           <circle r="49" fill="url(#rim)" stroke="rgba(0,0,0,.08)" stroke-width="1"></circle>
 
-          <!-- inner ring to add depth -->
-          <circle r="44.2" fill="url(#inner)" stroke="#ddd" stroke-width=".6"></circle>
-
           <g id="segments"></g>
-          <g id="ticks" stroke="#000" stroke-opacity=".12" stroke-width=".28"></g>
 
           <!-- hub -->
           <circle r="10.8" fill="#0f0f10" stroke="#4a4a4a" stroke-width="1.1"></circle>
@@ -396,8 +354,9 @@
 <script>
 /* ======= CONFIG ======= */
 const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler"];
+const LOSE_MESSAGES = ["Oops!", "Better luck!", "Almost!", "Next time!", "Nope!"];
 
-// Daily limits for prizes (corrected according to requirements)
+// Daily limits for prizes
 const DAILY_LIMITS = {
   "Pen": 50,
   "Cooler Bag": 10,
@@ -408,7 +367,6 @@ const DAILY_LIMITS = {
 
 const WHEEL = document.getElementById('wheel');
 const SEG_GROUP = document.getElementById('segments');
-const TICK_GROUP = document.getElementById('ticks');
 const STATUS = document.getElementById('status');
 const BTN_SPIN = document.getElementById('spinBtn');
 const BTN_RESET = document.getElementById('resetBtn');
@@ -422,11 +380,13 @@ const NOTEBOOK_COUNT = document.getElementById('notebook-count');
 const HAT_COUNT = document.getElementById('hat-count');
 const TUMBLER_COUNT = document.getElementById('tumbler-count');
 
-const SEG_SIZE = 45;               // degrees per segment (8 total)
-const CENTER_OFFSET = SEG_SIZE/2;  // 22.5°
+// 10 segments (36 degrees each)
+const SEG_COUNT = 10;
+const SEG_SIZE = 360 / SEG_COUNT;
+const CENTER_OFFSET = SEG_SIZE/2;
 const FULL = 360;
-const R = 46;     // slice radius inside rim
-const TXT_R = 30; // text radius for readability
+const R = 46;
+const TXT_R = 30;
 
 let spinning = false;
 let currentRotation = 0;
@@ -441,6 +401,20 @@ let dailyWins = {
   total: 0
 };
 
+// Build segments list with alternating prizes and lose messages
+const segments = [
+  { label: PRIZES[0], type: 'win' },        // Pen
+  { label: LOSE_MESSAGES[0], type: 'lose' }, // Oops!
+  { label: PRIZES[1], type: 'win' },        // Cooler Bag
+  { label: LOSE_MESSAGES[1], type: 'lose' }, // Better luck!
+  { label: PRIZES[2], type: 'win' },        // Notebook
+  { label: LOSE_MESSAGES[2], type: 'lose' }, // Almost!
+  { label: PRIZES[3], type: 'win' },        // Bucket Hat
+  { label: LOSE_MESSAGES[3], type: 'lose' }, // Next time!
+  { label: PRIZES[4], type: 'win' },        // Tumbler
+  { label: LOSE_MESSAGES[4], type: 'lose' }  // Not this time! (was Try again!)
+];
+
 // Load saved daily wins from localStorage
 function loadDailyWins() {
   const today = new Date().toDateString();
@@ -448,7 +422,6 @@ function loadDailyWins() {
   
   if (savedData) {
     const parsedData = JSON.parse(savedData);
-    // If saved data is from today, use it
     if (parsedData.date === today) {
       dailyWins = parsedData.wins;
       updatePrizeCounters();
@@ -457,7 +430,6 @@ function loadDailyWins() {
     }
   }
   
-  // Reset if no saved data or data is from a different day
   resetDailyWins();
 }
 
@@ -513,18 +485,6 @@ function arePrizesAvailable() {
   );
 }
 
-// Build segments list with lose messages instead of try again/extra spin
-const segments = [
-  { label: PRIZES[0], type: 'win' },
-  { label: 'Oops!', type: 'lose' },
-  { label: PRIZES[1], type: 'win' },
-  { label: 'Better luck!', type: 'lose' },
-  { label: PRIZES[2], type: 'win' },
-  { label: 'Almost!', type: 'lose' },
-  { label: PRIZES[3], type: 'win' },
-  { label: PRIZES[4], type: 'win' },
-];
-
 /* ABSA Color palette */
 const FILL_A = '#ffffff';
 const FILL_B = '#f7f7f7';
@@ -533,7 +493,7 @@ const TEXT_LOSE = '#666666';
 
 /* ======= SVG helpers ======= */
 function polarToXY(deg, radius){
-  const rad = (deg - 90) * Math.PI / 180; // start from top
+  const rad = (deg - 90) * Math.PI / 180;
   return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
 }
 
@@ -553,8 +513,8 @@ function addTextAt(angleDeg, text, color){
 
   t.textContent = text;
   t.setAttribute('fill', color);
-  t.setAttribute('font-size', '2.6');   // smaller labels (was 3.5)
-  t.setAttribute('font-weight', '800');
+  t.setAttribute('font-size', '2.8'); // Reduced from 3.2
+  t.setAttribute('font-weight', '700'); // Reduced from 800
   t.setAttribute('text-anchor','middle');
   t.setAttribute('dominant-baseline','central');
 
@@ -574,9 +534,8 @@ function addTextAt(angleDeg, text, color){
 
 function buildWheel(){
   SEG_GROUP.innerHTML = '';
-  TICK_GROUP.innerHTML = '';
 
-  for (let i=0; i<8; i++){
+  for (let i=0; i<SEG_COUNT; i++){
     const start = i * SEG_SIZE;
     const end   = (i+1) * SEG_SIZE;
     const center= start + CENTER_OFFSET;
@@ -585,7 +544,6 @@ function buildWheel(){
     // slice
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d', describeSlice(start, end, R));
-    // Use ABSA red for winning segments, alternating light colors for others
     if (seg.type === 'win') {
       path.setAttribute('fill', 'url(#absa-red-grad)');
     } else {
@@ -599,49 +557,30 @@ function buildWheel(){
     let color = TEXT_LOSE;
     if (seg.type === 'win')  color = TEXT_WIN;
     addTextAt(center, seg.label, color);
-
-    // tick marks
-    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
-    const a = polarToXY(start, R+0.2);
-    const b = polarToXY(start, R-4);
-    tick.setAttribute('x1', a.x.toFixed(2));
-    tick.setAttribute('y1', a.y.toFixed(2));
-    tick.setAttribute('x2', b.x.toFixed(2));
-    tick.setAttribute('y2', b.y.toFixed(2));
-    tick.setAttribute('stroke', 'rgba(0,0,0,.12)');
-    tick.setAttribute('stroke-width', '.45');
-    TICK_GROUP.appendChild(tick);
   }
 }
 buildWheel();
 
 /* ======= Spin Logic ======= */
 function pickIndexFair(){
-  // If all prizes are claimed for the day, always return a lose segment
   if (!arePrizesAvailable()) {
-    // Return a random lose segment (indices: 1, 3, 5)
-    const loseIndices = [1, 3, 5];
+    const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
     return loseIndices[Math.floor(Math.random() * loseIndices.length)];
   }
   
-  // Otherwise, pick a random segment
   let selectedIndex = Math.floor(Math.random() * segments.length);
   const selectedSegment = segments[selectedIndex];
   
-  // If it's a win segment but the prize is no longer available, find an available prize or lose segment
   if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
-    // Try to find an available prize
     const availablePrizes = segments.filter(seg => 
       seg.type === 'win' && isPrizeAvailable(seg.label)
     );
     
     if (availablePrizes.length > 0) {
-      // Select a random available prize
       const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
       selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
     } else {
-      // If no prizes available, select a lose segment
-      const loseIndices = [1, 3, 5];
+      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
       selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
     }
   }
@@ -654,7 +593,6 @@ function celebrate(){
   const rect = document.querySelector('.stage').getBoundingClientRect();
   const width = rect.width, height = rect.height;
 
-  // scale for crispness
   const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
   CONFETTI.width = width * dpr;
   CONFETTI.height = height * dpr;
@@ -708,20 +646,16 @@ function spin(){
   const idx = pickIndexFair();
   const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
 
-  // add several full turns for satisfaction
-  const fullTurns = 8 + Math.floor(Math.random()*4); // 8–11
-  const jitter = (Math.random()*6) - 3; // ±3°
+  const fullTurns = 8 + Math.floor(Math.random()*4);
+  const jitter = (Math.random()*6) - 3;
 
-  // We rotate from currentRotation to newRotation
   const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
 
-  // animate via CSS transform on the SVG element container
   const node = WHEEL;
   node.style.transition = `transform var(--spin-ms) var(--bezier)`;
   node.style.transform = `rotate(${finalRotation}deg)`;
   currentRotation = finalRotation;
 
-  // After spin ends, announce result
   const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
   const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
 
@@ -730,7 +664,6 @@ function spin(){
     let msg;
     
     if (result.type === 'win' && isPrizeAvailable(result.label)){
-      // Award the prize
       dailyWins[result.label]++;
       dailyWins.total++;
       saveDailyWins();
@@ -740,7 +673,6 @@ function spin(){
       showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
       celebrate();
     } else {
-      // Show lose message
       msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
       showToast('Try again — your next spin could be a winner!', false);
     }
@@ -766,7 +698,6 @@ BTN_SPIN.addEventListener('click', spin);
 BTN_RESET.addEventListener('click', resetWheel);
 
 document.addEventListener('keydown', (e)=>{
-  // Space or Enter will spin; R resets
   if (e.code === 'Space' || e.key === 'Enter'){
     e.preventDefault();
     spin();
@@ -778,7 +709,6 @@ document.addEventListener('keydown', (e)=>{
 /* Make confetti canvas match stage */
 function sizeConfetti(){
   const rect = document.querySelector('.stage').getBoundingClientRect();
-  // regular size; drawing scale handled in celebrate()
   CONFETTI.width = rect.width;
   CONFETTI.height = rect.height;
 }
@@ -786,8 +716,7 @@ function sizeConfetti(){
 // Initialize
 window.addEventListener('resize', sizeConfetti, { passive:true });
 sizeConfetti();
-loadDailyWins(); // Load daily wins when page loads
-
+loadDailyWins();
 </script>
 </body>
 </html>
