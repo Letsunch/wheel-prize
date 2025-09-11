@@ -12,7 +12,7 @@
     --absa-dark:#000000;
     --absa-gray:#333333;
     --absa-light:#F5F5F5;
-    --absa-gold:#FFC72C;
+    --absa-gold:#000000;
     --absa-silver:#D9D9D9;
 
     /* Theme */
@@ -227,37 +227,7 @@
 
   /* Prize counter */
   .prize-counter {
-    margin-top: 10px;
-    font-size: 14px;
-    color: var(--muted);
-    background: var(--panel-2);
-    padding: 10px 15px;
-    border-radius: 10px;
-    border: 1px solid var(--ring);
-    width: min(100%, 820px);
-  }
-  .prize-counter h3 {
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    color: var(--absa-red);
-  }
-  .prize-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-  }
-  .prize-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 5px 0;
-    border-bottom: 1px dashed var(--ring);
-  }
-  .prize-name {
-    font-weight: 600;
-  }
-  .prize-count {
-    font-weight: 700;
-    color: var(--absa-red);
+    display: none;
   }
 
   /* SVG text legibility chip */
@@ -269,7 +239,7 @@
   }
 
   /* Focus visible on the main buttons for keyboard users */
-  #spinBtn:focus-visible, #resetBtn:focus-visible{
+  #spinBtn:focus-visible, #resetBtn:focus-visible {
     outline:none; box-shadow: var(--focus);
   }
 
@@ -287,9 +257,6 @@
 </head>
 <body>
   <main class="app" role="main" aria-label="ABSA Prize Wheel">
-    <div class="absa-header" role="banner">
-      <div class="absa-logo" aria-label="ABSA Bank">ABSA<span>•</span>BANK</div>
-    </div>
     
     <header>
       <h1>ABSA Prize Wheel</h1>
@@ -344,7 +311,7 @@
       <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
     </section>
 
-    <div class="prize-counter">
+    <div id="prizeCounter" class="prize-counter">
       <h3>Daily Prize Limits</h3>
       <div class="prize-grid">
         <div class="prize-item">
@@ -456,7 +423,6 @@ function loadDailyWins() {
     if (parsedData.date === today) {
       dailyWins = parsedData.wins;
       updatePrizeCounters();
-      updateStatusWithLimits();
       return;
     }
   }
@@ -487,7 +453,6 @@ function resetDailyWins() {
   };
   saveDailyWins();
   updatePrizeCounters();
-  updateStatusWithLimits();
 }
 
 // Update prize counters display
@@ -498,13 +463,6 @@ function updatePrizeCounters() {
   HAT_COUNT.textContent = dailyWins["Bucket Hat"];
   TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
   VOUCHER_COUNT.textContent = dailyWins["Voucher"];
-}
-
-// Update status with daily limits info
-function updateStatusWithLimits() {
-  const totalLimit = Object.values(DAILY_LIMITS).reduce((a, b) => a + b, 0);
-  const remainingText = `Today: ${dailyWins.total}/${totalLimit} prizes won`;
-  STATUS.innerHTML = `Ready. ${remainingText} Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.`;
 }
 
 // Check if a prize is still available
@@ -720,8 +678,7 @@ function spin(){
       showToast('Try again — your next spin could be a winner!', false);
     }
     
-    const totalLimit = Object.values(DAILY_LIMITS).reduce((a, b) => a + b, 0);
-    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/${totalLimit} prizes won.`;
+    STATUS.innerHTML = `${msg}`;
     spinning = false;
     document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
@@ -734,7 +691,7 @@ function resetWheel(){
   WHEEL.style.transition = 'transform 380ms ease';
   WHEEL.style.transform = 'rotate(0deg)';
   currentRotation = 0;
-  updateStatusWithLimits();
+  STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
 }
 
 /* ======= Events & A11y ======= */
