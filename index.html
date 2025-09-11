@@ -260,7 +260,7 @@
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win exciting rewards. Six prizes with "Oops" messages in between. Daily limits apply.</p>
+      <p class="sub">The wheel gleams before you, ready for action. What are you waiting for? Give it that winning spin!</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -347,7 +347,8 @@
 <script>
 /* ======= CONFIG ======= */
 const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
-const LOSE_MESSAGES = ["Oops!", "Better luck!", "Almost!", "Next time!", "Nope!", "Try again!"];
+// Updated to only use "Oops!" and "Next time!" messages
+const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time!"];
 
 // Daily limits for prizes
 const DAILY_LIMITS = {
@@ -402,15 +403,15 @@ const segments = [
   { label: PRIZES[0], type: 'win' },        // Pen
   { label: LOSE_MESSAGES[0], type: 'lose' }, // Oops!
   { label: PRIZES[1], type: 'win' },        // Cooler Bag
-  { label: LOSE_MESSAGES[1], type: 'lose' }, // Better luck!
+  { label: LOSE_MESSAGES[1], type: 'lose' }, // Next time!
   { label: PRIZES[2], type: 'win' },        // Notebook
-  { label: LOSE_MESSAGES[2], type: 'lose' }, // Almost!
+  { label: LOSE_MESSAGES[2], type: 'lose' }, // Oops!
   { label: PRIZES[3], type: 'win' },        // Bucket Hat
   { label: LOSE_MESSAGES[3], type: 'lose' }, // Next time!
   { label: PRIZES[4], type: 'win' },        // Tumbler
-  { label: LOSE_MESSAGES[4], type: 'lose' }, // Nope!
+  { label: LOSE_MESSAGES[4], type: 'lose' }, // Oops!
   { label: PRIZES[5], type: 'win' },        // Voucher
-  { label: LOSE_MESSAGES[5], type: 'lose' }  // Try again!
+  { label: LOSE_MESSAGES[5], type: 'lose' }  // Next time!
 ];
 
 // Load saved daily wins from localStorage
