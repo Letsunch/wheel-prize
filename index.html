@@ -427,9 +427,7 @@
 
   // Initialize Firebase
   const app = initializeApp(firebaseConfig);
-  // Analytics is optional; safe to keep
-  try { getAnalytics(app); } catch(e) { /* ignore if blocked by environment */ }
-  // Firestore instance
+  try { getAnalytics(app); } catch(e) { /* ignore if blocked */ }
   const db = getFirestore(app);
 
   /* ======= CONFIG ======= */
@@ -484,7 +482,7 @@
 
   /* ===== Player & Logging ===== */
   let currentPlayer = null; // {name, surname, phone}
-  let plays = [];           // array of {name, surname, cell, prize, timestamp}
+  let plays = [];           // array of {name, surename, cell, prize, dateKey, createdAt}
 
   // Storage keys
   const LS_WINS = 'absaWheelDailyWins';
@@ -570,7 +568,7 @@
     saveDailyWins();
     updatePrizeCounters();
 
-    // OPTIONAL: seed Firestore with zeros for the day (keeps backend tidy)
+    // OPTIONAL: seed Firestore doc for the day
     (async ()=>{
       try {
         const dayDoc = doc(db, 'dailyWins', todayKey(new Date()));
@@ -585,7 +583,6 @@
           updatedAt: serverTimestamp()
         }, { merge: true });
       } catch(e){
-        // fine to ignore; will be created on first win
         console.warn('Could not seed dailyWins in Firestore:', e);
       }
     })();
@@ -697,20 +694,20 @@
 
   async function savePlayToFirestore(record){
     try{
-      // 1) write the raw play
+      // IMPORTANT: field insertion order as requested
       await addDoc(collection(db, 'plays'), {
         name: record.name,
-        surname: record.surname,
+        surename: record.surename,    // spelled exactly as requested
         cell: record.cell,
-        prize: record.prize,                  // "Pen" | "Nothing won" | etc.
-        createdAt: serverTimestamp(),
-        dateKey: todayKey(new Date())
+        prize: record.prize,
+        dateKey: record.dateKey,
+        createdAt: serverTimestamp()
       });
 
-      // 2) if they actually won a prize, increment daily counters
+      // increment daily counters if a prize was actually won
       const won = record.prize && record.prize !== "Nothing won";
       if (won){
-        const dayDoc = doc(db, 'dailyWins', todayKey(new Date()));
+        const dayDoc = doc(db, 'dailyWins', record.dateKey);
         await setDoc(dayDoc, {
           [record.prize]: increment(1),
           total: increment(1),
@@ -719,7 +716,7 @@
       }
     }catch(err){
       console.error('Firestore save failed:', err);
-      // optional: surface to user
+      // optional toast:
       // showToast('Could not sync to server. Saved locally.', false);
     }
   }
@@ -855,18 +852,20 @@
         showToast('Try again — your next spin could be a winner!', false);
       }
 
-      // Log the play for the current player (surname instead of email)
+      // Build record with EXACT key order
+      const dateKeyVal = todayKey(new Date());
       const record = {
         name: currentPlayer.name,
-        surname: currentPlayer.surname,
+        surename: currentPlayer.surname,   // note spelling per your request
         cell: currentPlayer.phone,
         prize: prizeText,
-        timestamp: new Date().toISOString()
+        dateKey: dateKeyVal,
+        createdAt: new Date().toISOString()
       };
       plays.push(record);
       savePlays();
 
-      // NEW: sync to Firestore (non-blocking)
+      // Sync to Firestore
       savePlayToFirestore(record);
 
       STATUS.innerHTML = `${msg}`;
