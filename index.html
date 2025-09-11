@@ -45,9 +45,29 @@
     font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     color:var(--text);
     background: var(--bg);
+    /* Updated with actual ABSA logo */
+    background-image: url('assets/absa_logo.png');
+    background-repeat: repeat;
+    background-size: 120px;
+    background-position: center;
+    background-attachment: fixed;
     display:grid;
     place-items:center;
     padding:22px;
+    position: relative;
+  }
+
+  /* Add overlay to ensure content remains readable */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    opacity: 0.92;
+    z-index: -1;
   }
 
   .app{
@@ -56,6 +76,8 @@
     gap:24px;
     justify-items:center;
     text-align:center;
+    position: relative;
+    z-index: 1;
   }
 
   /* Header bar */
@@ -460,13 +482,13 @@ function saveDailyWins() {
 // Reset daily wins
 function resetDailyWins() {
   dailyWins = {
-    "Pen": 0,
-    "Cooler Bag": 0,
-    "Notebook": 0,
-    "Bucket Hat": 0,
-    "Tumbler": 0,
-    "Voucher": 0,
-    total: 0
+  "Pen": 0,
+  "Cooler Bag": 0,
+  "Notebook": 0,
+  "Bucket Hat": 0,
+  "Tumbler": 0,
+  "Voucher": 0,
+  total: 0
   };
   saveDailyWins();
   updatePrizeCounters();
@@ -540,6 +562,9 @@ function addTextAt(angleDeg, text, color){
     t.setAttribute('class', 'smaller-text');
   }
 
+  // Rotate text to be vertical (perpendicular to the radius)
+  t.setAttribute('transform', `rotate(${angleDeg + 90})`);
+
   // chip bg for legibility
   const padX = Math.max(10, text.length * 1.6); // Reduced padding
   const padY = 5; // Reduced padding
@@ -548,6 +573,7 @@ function addTextAt(angleDeg, text, color){
   bg.setAttribute('width', padX.toString());
   bg.setAttribute('height', padY.toString());
   bg.setAttribute('class','label-chip');
+  bg.setAttribute('transform', `rotate(${angleDeg + 90})`);
 
   g.appendChild(bg);
   g.appendChild(t);
