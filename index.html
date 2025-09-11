@@ -404,145 +404,94 @@
     </div>
   </div>
 
-<script>
-/* ======= CONFIG ======= */
-const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
-const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time!"];
+<script type="module">
+  /* =========================
+     FIREBASE (v12.2.1) SETUP
+     ========================= */
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+  import { 
+    getFirestore, collection, addDoc, doc, setDoc, serverTimestamp, increment 
+  } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-// Daily limits for prizes
-const DAILY_LIMITS = {
-  "Pen": 50,
-  "Cooler Bag": 10,
-  "Notebook": 20,
-  "Bucket Hat": 10,
-  "Tumbler": 5,
-  "Voucher": 3
-};
-
-const WHEEL = document.getElementById('wheel');
-const SEG_GROUP = document.getElementById('segments');
-const STATUS = document.getElementById('status');
-const BTN_SPIN = document.getElementById('spinBtn');
-const BTN_RESET = document.getElementById('resetBtn');
-const BTN_ADD_PLAYER = document.getElementById('addPlayerBtn');
-const TOAST = document.getElementById('toast');
-const CONFETTI = document.getElementById('confetti');
-
-// Modal elems
-const MODAL_BACKDROP = document.getElementById('playerModalBackdrop');
-const FORM_PLAYER = document.getElementById('playerForm');
-const INPUT_NAME = document.getElementById('playerName');
-const INPUT_SURNAME = document.getElementById('playerSurname');
-const INPUT_PHONE = document.getElementById('playerPhone');
-const BTN_CANCEL_PLAYER = document.getElementById('cancelPlayer');
-
-// Prize counter elements
-const PEN_COUNT = document.getElementById('pen-count');
-const COOLER_COUNT = document.getElementById('cooler-count');
-const NOTEBOOK_COUNT = document.getElementById('notebook-count');
-const HAT_COUNT = document.getElementById('hat-count');
-const TUMBLER_COUNT = document.getElementById('tumbler-count');
-const VOUCHER_COUNT = document.getElementById('voucher-count');
-
-// 12 segments (30 degrees each)
-const SEG_COUNT = 12;
-const SEG_SIZE = 360 / SEG_COUNT;
-const CENTER_OFFSET = SEG_SIZE/2;
-const FULL = 360;
-const R = 46;
-const TXT_R = 30;
-
-let spinning = false;
-let currentRotation = 0;
-
-/* ===== Player & Logging ===== */
-let currentPlayer = null; // {name, surname, phone}
-let plays = [];           // array of {name, surname, cell, prize, timestamp}
-
-// Storage keys
-const LS_WINS = 'absaWheelDailyWins';
-const LS_PLAYS = 'absaWheelPlays';
-
-// Track daily wins
-let dailyWins = {
-  "Pen": 0,
-  "Cooler Bag": 0,
-  "Notebook": 0,
-  "Bucket Hat": 0,
-  "Tumbler": 0,
-  "Voucher": 0,
-  total: 0
-};
-
-// Build segments list with alternating prizes and lose messages
-const segments = [
-  { label: PRIZES[0], type: 'win' },
-  { label: LOSE_MESSAGES[0], type: 'lose' },
-  { label: PRIZES[1], type: 'win' },
-  { label: LOSE_MESSAGES[1], type: 'lose' },
-  { label: PRIZES[2], type: 'win' },
-  { label: LOSE_MESSAGES[2], type: 'lose' },
-  { label: PRIZES[3], type: 'win' },
-  { label: LOSE_MESSAGES[3], type: 'lose' },
-  { label: PRIZES[4], type: 'win' },
-  { label: LOSE_MESSAGES[4], type: 'lose' },
-  { label: PRIZES[5], type: 'win' },
-  { label: LOSE_MESSAGES[5], type: 'lose' }
-];
-
-/* ===== Local Storage Helpers ===== */
-function loadPlays(){
-  try {
-    const raw = localStorage.getItem(LS_PLAYS);
-    plays = raw ? JSON.parse(raw) : [];
-  } catch(e){
-    plays = [];
-  }
-}
-function savePlays(){
-  localStorage.setItem(LS_PLAYS, JSON.stringify(plays));
-}
-function downloadPlaysJSON(){
-  const blob = new Blob([JSON.stringify(plays, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'absa_plays.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-// Load saved daily wins from localStorage
-function loadDailyWins() {
-  const today = new Date().toDateString();
-  const savedData = localStorage.getItem(LS_WINS);
-  
-  if (savedData) {
-    const parsedData = JSON.parse(savedData);
-    if (parsedData.date === today) {
-      dailyWins = parsedData.wins;
-      updatePrizeCounters();
-      return;
-    }
-  }
-  resetDailyWins();
-}
-
-// Save daily wins to localStorage
-function saveDailyWins() {
-  const today = new Date().toDateString();
-  const dataToSave = {
-    date: today,
-    wins: dailyWins
+  // Your web app's Firebase configuration (as provided)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAferEmJwisxEKTgm8enP_2On3Tap1Bzrc",
+    authDomain: "absa-wheel.firebaseapp.com",
+    projectId: "absa-wheel",
+    storageBucket: "absa-wheel.firebasestorage.app",
+    messagingSenderId: "927747421631",
+    appId: "1:927747421631:web:8069829cf9c247b7d69d0a",
+    measurementId: "G-TB5WMNDLVN"
   };
-  localStorage.setItem(LS_WINS, JSON.stringify(dataToSave));
-}
 
-// Reset daily wins
-function resetDailyWins() {
-  dailyWins = {
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  // Analytics is optional; safe to keep
+  try { getAnalytics(app); } catch(e) { /* ignore if blocked by environment */ }
+  // Firestore instance
+  const db = getFirestore(app);
+
+  /* ======= CONFIG ======= */
+  const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
+  const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time!"];
+
+  // Daily limits for prizes
+  const DAILY_LIMITS = {
+    "Pen": 50,
+    "Cooler Bag": 10,
+    "Notebook": 20,
+    "Bucket Hat": 10,
+    "Tumbler": 5,
+    "Voucher": 3
+  };
+
+  const WHEEL = document.getElementById('wheel');
+  const SEG_GROUP = document.getElementById('segments');
+  const STATUS = document.getElementById('status');
+  const BTN_SPIN = document.getElementById('spinBtn');
+  const BTN_RESET = document.getElementById('resetBtn');
+  const BTN_ADD_PLAYER = document.getElementById('addPlayerBtn');
+  const TOAST = document.getElementById('toast');
+  const CONFETTI = document.getElementById('confetti');
+
+  // Modal elems
+  const MODAL_BACKDROP = document.getElementById('playerModalBackdrop');
+  const FORM_PLAYER = document.getElementById('playerForm');
+  const INPUT_NAME = document.getElementById('playerName');
+  const INPUT_SURNAME = document.getElementById('playerSurname');
+  const INPUT_PHONE = document.getElementById('playerPhone');
+  const BTN_CANCEL_PLAYER = document.getElementById('cancelPlayer');
+
+  // Prize counter elements
+  const PEN_COUNT = document.getElementById('pen-count');
+  const COOLER_COUNT = document.getElementById('cooler-count');
+  const NOTEBOOK_COUNT = document.getElementById('notebook-count');
+  const HAT_COUNT = document.getElementById('hat-count');
+  const TUMBLER_COUNT = document.getElementById('tumbler-count');
+  const VOUCHER_COUNT = document.getElementById('voucher-count');
+
+  // 12 segments (30 degrees each)
+  const SEG_COUNT = 12;
+  const SEG_SIZE = 360 / SEG_COUNT;
+  const CENTER_OFFSET = SEG_SIZE/2;
+  const FULL = 360;
+  const R = 46;
+  const TXT_R = 30;
+
+  let spinning = false;
+  let currentRotation = 0;
+
+  /* ===== Player & Logging ===== */
+  let currentPlayer = null; // {name, surname, phone}
+  let plays = [];           // array of {name, surname, cell, prize, timestamp}
+
+  // Storage keys
+  const LS_WINS = 'absaWheelDailyWins';
+  const LS_PLAYS = 'absaWheelPlays';
+
+  // Track daily wins
+  let dailyWins = {
     "Pen": 0,
     "Cooler Bag": 0,
     "Notebook": 0,
@@ -551,333 +500,459 @@ function resetDailyWins() {
     "Voucher": 0,
     total: 0
   };
-  saveDailyWins();
-  updatePrizeCounters();
-}
 
-// Update prize counters display
-function updatePrizeCounters() {
-  PEN_COUNT.textContent = dailyWins["Pen"];
-  COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
-  NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
-  HAT_COUNT.textContent = dailyWins["Bucket Hat"];
-  TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
-  VOUCHER_COUNT.textContent = dailyWins["Voucher"];
-}
+  // Build segments list with alternating prizes and lose messages
+  const segments = [
+    { label: PRIZES[0], type: 'win' },
+    { label: LOSE_MESSAGES[0], type: 'lose' },
+    { label: PRIZES[1], type: 'win' },
+    { label: LOSE_MESSAGES[1], type: 'lose' },
+    { label: PRIZES[2], type: 'win' },
+    { label: LOSE_MESSAGES[2], type: 'lose' },
+    { label: PRIZES[3], type: 'win' },
+    { label: LOSE_MESSAGES[3], type: 'lose' },
+    { label: PRIZES[4], type: 'win' },
+    { label: LOSE_MESSAGES[4], type: 'lose' },
+    { label: PRIZES[5], type: 'win' },
+    { label: LOSE_MESSAGES[5], type: 'lose' }
+  ];
 
-// Check if a prize is still available
-function isPrizeAvailable(prize) {
-  return dailyWins[prize] < DAILY_LIMITS[prize];
-}
-
-// Check if any prize is still available
-function arePrizesAvailable() {
-  return Object.values(DAILY_LIMITS).some((limit, index) => 
-    dailyWins[Object.keys(DAILY_LIMITS)[index]] < limit
-  );
-}
-
-/* ABSA Color palette */
-const FILL_A = '#ffffff';
-const FILL_B = '#f7f7f7';
-const TEXT_WIN = '#E41E2D';
-const TEXT_LOSE = '#666666';
-
-/* ======= SVG helpers ======= */
-function polarToXY(deg, radius){
-  const rad = (deg - 90) * Math.PI / 180;
-  return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
-}
-
-function describeSlice(startDeg, endDeg, radius){
-  const start = polarToXY(startDeg, radius);
-  const end   = polarToXY(endDeg, radius);
-  const large = endDeg - startDeg <= 180 ? 0 : 1;
-  return `M 0 0 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
-}
-
-function addTextAt(angleDeg, text, color){
-  const anchor = polarToXY(angleDeg, TXT_R);
-  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)})`);
-  const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
-  const t  = document.createElementNS('http://www.w3.org/2000/svg','text');
-
-  t.textContent = text;
-  t.setAttribute('fill', color);
-  t.setAttribute('font-size', '2.4');
-  t.setAttribute('font-weight', '700');
-  t.setAttribute('text-anchor','middle');
-  t.setAttribute('dominant-baseline','central');
-  
-  if (text.length > 8) {
-    t.setAttribute('class', 'smaller-text');
-  }
-
-  t.setAttribute('transform', `rotate(${angleDeg + 90})`);
-
-  const padX = Math.max(10, text.length * 1.6);
-  const padY = 5;
-  bg.setAttribute('x', (-padX/2).toString());
-  bg.setAttribute('y', (-padY/2).toString());
-  bg.setAttribute('width', padX.toString());
-  bg.setAttribute('height', padY.toString());
-  bg.setAttribute('class','label-chip');
-  bg.setAttribute('transform', `rotate(${angleDeg + 90})`);
-
-  g.appendChild(bg);
-  g.appendChild(t);
-  SEG_GROUP.appendChild(g);
-}
-
-function buildWheel(){
-  SEG_GROUP.innerHTML = '';
-
-  for (let i=0; i<SEG_COUNT; i++){
-    const start = i * SEG_SIZE;
-    const end   = (i+1) * SEG_SIZE;
-    const center= start + CENTER_OFFSET;
-    const seg   = segments[i];
-
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d', describeSlice(start, end, R));
-    path.setAttribute('fill', seg.type === 'win' ? 'url(#absa-red-grad)' : (i % 2 === 0 ? FILL_A : FILL_B));
-    path.setAttribute('stroke', 'rgba(0,0,0,.08)');
-    path.setAttribute('stroke-width', '.6');
-    SEG_GROUP.appendChild(path);
-
-    addTextAt(center, seg.label, seg.type === 'win' ? TEXT_WIN : TEXT_LOSE);
-  }
-}
-buildWheel();
-
-/* ======= Spin Logic ======= */
-function pickIndexFair(){
-  if (!arePrizesAvailable()) {
-    const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
-    return loseIndices[Math.floor(Math.random() * loseIndices.length)];
-  }
-  
-  let selectedIndex = Math.floor(Math.random() * segments.length);
-  const selectedSegment = segments[selectedIndex];
-  
-  if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
-    const availablePrizes = segments.filter(seg => 
-      seg.type === 'win' && isPrizeAvailable(seg.label)
-    );
-    
-    if (availablePrizes.length > 0) {
-      const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
-      selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
-    } else {
-      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
-      selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+  /* ===== Local Storage Helpers ===== */
+  function loadPlays(){
+    try {
+      const raw = localStorage.getItem(LS_PLAYS);
+      plays = raw ? JSON.parse(raw) : [];
+    } catch(e){
+      plays = [];
     }
   }
-  
-  return selectedIndex;
-}
-
-function celebrate(){
-  const ctx = CONFETTI.getContext('2d');
-  const rect = document.querySelector('.stage').getBoundingClientRect();
-  const width = rect.width, height = rect.height;
-
-  const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-  CONFETTI.width = width * dpr;
-  CONFETTI.height = height * dpr;
-  ctx.scale(dpr, dpr);
-
-  const pieces = Array.from({length: 120}, () => ({
-    x: Math.random()*width,
-    y: -10 + Math.random()*10,
-    w: 3 + Math.random()*4,
-    h: 6 + Math.random()*6,
-    v: 2 + Math.random()*3,
-    a: Math.random()*FULL,
-    s: 2 + Math.random()*3
-  }));
-
-  let frames = 0;
-  function step(){
-    ctx.clearRect(0,0,width,height);
-    pieces.forEach(p=>{
-      p.y += p.v;
-      p.a += p.s;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.a*Math.PI/180);
-      ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
-      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
-      ctx.restore();
-    });
-    frames++;
-    if (frames < 100) requestAnimationFrame(step);
-    else ctx.clearRect(0,0,width,height);
+  function savePlays(){
+    localStorage.setItem(LS_PLAYS, JSON.stringify(plays));
   }
-  step();
-}
 
-function showToast(html, nice=false){
-  TOAST.innerHTML = html;
-  TOAST.classList.toggle('win', !!nice);
-  TOAST.classList.add('show');
-  setTimeout(()=> TOAST.classList.remove('show'), 2600);
-}
-
-/* Guard — require a player before spinning */
-function ensurePlayerSelected(){
-  if (!currentPlayer){
-    showToast('Add a player first to spin.', false);
-    BTN_ADD_PLAYER.focus();
-    return false;
-  }
-  return true;
-}
-
-function spin(){
-  if (spinning) return;
-  if (!ensurePlayerSelected()) return;
-
-  spinning = true;
-  document.body.classList.add('spinning');
-  BTN_SPIN.disabled = true;
-  BTN_RESET.disabled = true;
-  BTN_ADD_PLAYER.disabled = true;
-  STATUS.innerHTML = 'Spinning…';
-
-  const idx = pickIndexFair();
-  const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
-
-  const fullTurns = 8 + Math.floor(Math.random()*4);
-  const jitter = (Math.random()*6) - 3;
-
-  const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
-
-  const node = WHEEL;
-  node.style.transition = `transform var(--spin-ms) var(--bezier)`;
-  node.style.transform = `rotate(${finalRotation}deg)`;
-  currentRotation = finalRotation;
-
-  const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
-  const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
-
-  setTimeout(()=>{
-    const result = segments[idx];
-    let msg;
-    let prizeText = "Nothing won";
+  // Load saved daily wins from localStorage
+  function loadDailyWins() {
+    const today = new Date().toDateString();
+    const savedData = localStorage.getItem(LS_WINS);
     
-    if (result.type === 'win' && isPrizeAvailable(result.label)){
-      dailyWins[result.label]++;
-      dailyWins.total++;
-      saveDailyWins();
-      updatePrizeCounters();
-      
-      prizeText = result.label;
-      msg = `🎉 You won a <strong>${result.label}</strong>!`;
-      showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
-      celebrate();
-    } else {
-      msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
-      showToast('Try again — your next spin could be a winner!', false);
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      if (parsedData.date === today) {
+        dailyWins = parsedData.wins;
+        updatePrizeCounters();
+        return;
+      }
     }
+    resetDailyWins();
+  }
 
-    // Log the play for the current player (surname instead of email)
-    const record = {
-      name: currentPlayer.name,
-      surname: currentPlayer.surname,
-      cell: currentPlayer.phone,
-      prize: prizeText,
-      timestamp: new Date().toISOString()
+  // Save daily wins to localStorage
+  function saveDailyWins() {
+    const today = new Date().toDateString();
+    const dataToSave = {
+      date: today,
+      wins: dailyWins
     };
-    plays.push(record);
-    savePlays();
-    downloadPlaysJSON();
-
-    STATUS.innerHTML = `${msg}`;
-    spinning = false;
-    document.body.classList.remove('spinning');
-    BTN_SPIN.disabled = false;
-    BTN_RESET.disabled = false;
-    BTN_ADD_PLAYER.disabled = false;
-  }, dur + 60);
-}
-
-function resetWheel(){
-  if (spinning) return;
-  WHEEL.style.transition = 'transform 380ms ease';
-  WHEEL.style.transform = 'rotate(0deg)';
-  currentRotation = 0;
-  STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
-}
-
-/* ======= Modal Controls ======= */
-function openPlayerModal(){
-  FORM_PLAYER.reset();
-  MODAL_BACKDROP.classList.add('show-modal');
-  setTimeout(()=> INPUT_NAME.focus(), 0);
-}
-function closePlayerModal(){
-  MODAL_BACKDROP.classList.remove('show-modal');
-}
-BTN_ADD_PLAYER.addEventListener('click', openPlayerModal);
-BTN_CANCEL_PLAYER.addEventListener('click', closePlayerModal);
-MODAL_BACKDROP.addEventListener('click', (e)=>{
-  if (e.target === MODAL_BACKDROP) closePlayerModal();
-});
-document.addEventListener('keydown', (e)=>{
-  if (e.key === 'Escape' && MODAL_BACKDROP.classList.contains('show-modal')) closePlayerModal();
-});
-
-FORM_PLAYER.addEventListener('submit', (e)=>{
-  e.preventDefault();
-  const name = (INPUT_NAME.value || '').trim();
-  const surname = (INPUT_SURNAME.value || '').trim();
-  const phone = (INPUT_PHONE.value || '').trim();
-
-  if (!name || !surname || !phone){
-    showToast('Please fill in all fields.', false);
-    return;
+    localStorage.setItem(LS_WINS, JSON.stringify(dataToSave));
   }
 
-  currentPlayer = { name, surname, phone };
-  STATUS.innerHTML = `Player: <strong>${name} ${surname}</strong> ready to spin.`;
-  showToast(`Player <strong>${name} ${surname}</strong> added.`, true);
-  closePlayerModal();
-});
+  // Reset daily wins
+  function resetDailyWins() {
+    dailyWins = {
+      "Pen": 0,
+      "Cooler Bag": 0,
+      "Notebook": 0,
+      "Bucket Hat": 0,
+      "Tumbler": 0,
+      "Voucher": 0,
+      total: 0
+    };
+    saveDailyWins();
+    updatePrizeCounters();
 
-/* ======= Events & A11y ======= */
-BTN_SPIN.addEventListener('click', spin);
-BTN_RESET.addEventListener('click', resetWheel);
+    // OPTIONAL: seed Firestore with zeros for the day (keeps backend tidy)
+    (async ()=>{
+      try {
+        const dayDoc = doc(db, 'dailyWins', todayKey(new Date()));
+        await setDoc(dayDoc, {
+          "Pen": 0,
+          "Cooler Bag": 0,
+          "Notebook": 0,
+          "Bucket Hat": 0,
+          "Tumbler": 0,
+          "Voucher": 0,
+          total: 0,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch(e){
+        // fine to ignore; will be created on first win
+        console.warn('Could not seed dailyWins in Firestore:', e);
+      }
+    })();
+  }
 
-document.addEventListener('keydown', (e)=>{
-  if (e.code === 'Space' || e.key === 'Enter'){
-    const active = document.activeElement;
-    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
-    const modalOpen = MODAL_BACKDROP.classList.contains('show-modal');
-    if (!isTyping && !modalOpen){
-      e.preventDefault();
-      spin();
+  // Update prize counters display
+  function updatePrizeCounters() {
+    PEN_COUNT.textContent = dailyWins["Pen"];
+    COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
+    NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
+    HAT_COUNT.textContent = dailyWins["Bucket Hat"];
+    TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
+    VOUCHER_COUNT.textContent = dailyWins["Voucher"];
+  }
+
+  // Check if a prize is still available
+  function isPrizeAvailable(prize) {
+    return dailyWins[prize] < DAILY_LIMITS[prize];
+  }
+
+  // Check if any prize is still available
+  function arePrizesAvailable() {
+    return Object.values(DAILY_LIMITS).some((limit, index) => 
+      dailyWins[Object.keys(DAILY_LIMITS)[index]] < limit
+    );
+  }
+
+  /* ABSA Color palette */
+  const FILL_A = '#ffffff';
+  const FILL_B = '#f7f7f7';
+  const TEXT_WIN = '#E41E2D';
+  const TEXT_LOSE = '#666666';
+
+  /* ======= SVG helpers ======= */
+  function polarToXY(deg, radius){
+    const rad = (deg - 90) * Math.PI / 180;
+    return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
+  }
+
+  function describeSlice(startDeg, endDeg, radius){
+    const start = polarToXY(startDeg, radius);
+    const end   = polarToXY(endDeg, radius);
+    const large = endDeg - startDeg <= 180 ? 0 : 1;
+    return `M 0 0 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
+  }
+
+  function addTextAt(angleDeg, text, color){
+    const anchor = polarToXY(angleDeg, TXT_R);
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)})`);
+    const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    const t  = document.createElementNS('http://www.w3.org/2000/svg','text');
+
+    t.textContent = text;
+    t.setAttribute('fill', color);
+    t.setAttribute('font-size', '2.4');
+    t.setAttribute('font-weight', '700');
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('dominant-baseline','central');
+    
+    if (text.length > 8) {
+      t.setAttribute('class', 'smaller-text');
     }
-  } else if ((e.key === 'r' || e.key === 'R') && !spinning){
-    resetWheel();
-  } else if ((e.key === 'a' || e.key === 'A') && !spinning){
-    openPlayerModal();
+
+    t.setAttribute('transform', `rotate(${angleDeg + 90})`);
+
+    const padX = Math.max(10, text.length * 1.6);
+    const padY = 5;
+    bg.setAttribute('x', (-padX/2).toString());
+    bg.setAttribute('y', (-padY/2).toString());
+    bg.setAttribute('width', padX.toString());
+    bg.setAttribute('height', padY.toString());
+    bg.setAttribute('class','label-chip');
+    bg.setAttribute('transform', `rotate(${angleDeg + 90})`);
+
+    g.appendChild(bg);
+    g.appendChild(t);
+    SEG_GROUP.appendChild(g);
   }
-});
 
-/* Make confetti canvas match stage */
-function sizeConfetti(){
-  const rect = document.querySelector('.stage').getBoundingClientRect();
-  CONFETTI.width = rect.width;
-  CONFETTI.height = rect.height;
-}
+  function buildWheel(){
+    SEG_GROUP.innerHTML = '';
 
-// Initialize
-window.addEventListener('resize', sizeConfetti, { passive:true });
-sizeConfetti();
-loadDailyWins();
-loadPlays();
+    for (let i=0; i<SEG_COUNT; i++){
+      const start = i * SEG_SIZE;
+      const end   = (i+1) * SEG_SIZE;
+      const center= start + CENTER_OFFSET;
+      const seg   = segments[i];
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', describeSlice(start, end, R));
+      path.setAttribute('fill', seg.type === 'win' ? 'url(#absa-red-grad)' : (i % 2 === 0 ? FILL_A : FILL_B));
+      path.setAttribute('stroke', 'rgba(0,0,0,.08)');
+      path.setAttribute('stroke-width', '.6');
+      SEG_GROUP.appendChild(path);
+
+      addTextAt(center, seg.label, seg.type === 'win' ? TEXT_WIN : TEXT_LOSE);
+    }
+  }
+  buildWheel();
+
+  /* ======= FIRESTORE HELPERS ======= */
+  function todayKey(dateObj = new Date()){
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth()+1).padStart(2,'0');
+    const d = String(dateObj.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+
+  async function savePlayToFirestore(record){
+    try{
+      // 1) write the raw play
+      await addDoc(collection(db, 'plays'), {
+        name: record.name,
+        surname: record.surname,
+        cell: record.cell,
+        prize: record.prize,                  // "Pen" | "Nothing won" | etc.
+        createdAt: serverTimestamp(),
+        dateKey: todayKey(new Date())
+      });
+
+      // 2) if they actually won a prize, increment daily counters
+      const won = record.prize && record.prize !== "Nothing won";
+      if (won){
+        const dayDoc = doc(db, 'dailyWins', todayKey(new Date()));
+        await setDoc(dayDoc, {
+          [record.prize]: increment(1),
+          total: increment(1),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    }catch(err){
+      console.error('Firestore save failed:', err);
+      // optional: surface to user
+      // showToast('Could not sync to server. Saved locally.', false);
+    }
+  }
+
+  /* ======= Spin Logic ======= */
+  function pickIndexFair(){
+    if (!arePrizesAvailable()) {
+      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+      return loseIndices[Math.floor(Math.random() * loseIndices.length)];
+    }
+    
+    let selectedIndex = Math.floor(Math.random() * segments.length);
+    const selectedSegment = segments[selectedIndex];
+    
+    if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
+      const availablePrizes = segments.filter(seg => 
+        seg.type === 'win' && isPrizeAvailable(seg.label)
+      );
+      
+      if (availablePrizes.length > 0) {
+        const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+        selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
+      } else {
+        const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+        selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+      }
+    }
+    
+    return selectedIndex;
+  }
+
+  function celebrate(){
+    const ctx = CONFETTI.getContext('2d');
+    const rect = document.querySelector('.stage').getBoundingClientRect();
+    const width = rect.width, height = rect.height;
+
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    CONFETTI.width = width * dpr;
+    CONFETTI.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const pieces = Array.from({length: 120}, () => ({
+      x: Math.random()*width,
+      y: -10 + Math.random()*10,
+      w: 3 + Math.random()*4,
+      h: 6 + Math.random()*6,
+      v: 2 + Math.random()*3,
+      a: Math.random()*FULL,
+      s: 2 + Math.random()*3
+    }));
+
+    let frames = 0;
+    function step(){
+      ctx.clearRect(0,0,width,height);
+      pieces.forEach(p=>{
+        p.y += p.v;
+        p.a += p.s;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.a*Math.PI/180);
+        ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      });
+      frames++;
+      if (frames < 100) requestAnimationFrame(step);
+      else ctx.clearRect(0,0,width,height);
+    }
+    step();
+  }
+
+  function showToast(html, nice=false){
+    TOAST.innerHTML = html;
+    TOAST.classList.toggle('win', !!nice);
+    TOAST.classList.add('show');
+    setTimeout(()=> TOAST.classList.remove('show'), 2600);
+  }
+
+  /* Guard — require a player before spinning */
+  function ensurePlayerSelected(){
+    if (!currentPlayer){
+      showToast('Add a player first to spin.', false);
+      BTN_ADD_PLAYER.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function spin(){
+    if (spinning) return;
+    if (!ensurePlayerSelected()) return;
+
+    spinning = true;
+    document.body.classList.add('spinning');
+    BTN_SPIN.disabled = true;
+    BTN_RESET.disabled = true;
+    BTN_ADD_PLAYER.disabled = true;
+    STATUS.innerHTML = 'Spinning…';
+
+    const idx = pickIndexFair();
+    const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
+
+    const fullTurns = 8 + Math.floor(Math.random()*4);
+    const jitter = (Math.random()*6) - 3;
+
+    const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
+
+    const node = WHEEL;
+    node.style.transition = `transform var(--spin-ms) var(--bezier)`;
+    node.style.transform = `rotate(${finalRotation}deg)`;
+    currentRotation = finalRotation;
+
+    const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
+    const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
+
+    setTimeout(()=>{
+      const result = segments[idx];
+      let msg;
+      let prizeText = "Nothing won";
+      
+      if (result.type === 'win' && isPrizeAvailable(result.label)){
+        dailyWins[result.label]++;
+        dailyWins.total++;
+        saveDailyWins();
+        updatePrizeCounters();
+        
+        prizeText = result.label;
+        msg = `🎉 You won a <strong>${result.label}</strong>!`;
+        showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
+        celebrate();
+      } else {
+        msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
+        showToast('Try again — your next spin could be a winner!', false);
+      }
+
+      // Log the play for the current player (surname instead of email)
+      const record = {
+        name: currentPlayer.name,
+        surname: currentPlayer.surname,
+        cell: currentPlayer.phone,
+        prize: prizeText,
+        timestamp: new Date().toISOString()
+      };
+      plays.push(record);
+      savePlays();
+
+      // NEW: sync to Firestore (non-blocking)
+      savePlayToFirestore(record);
+
+      STATUS.innerHTML = `${msg}`;
+      spinning = false;
+      document.body.classList.remove('spinning');
+      BTN_SPIN.disabled = false;
+      BTN_RESET.disabled = false;
+      BTN_ADD_PLAYER.disabled = false;
+    }, dur + 60);
+  }
+
+  function resetWheel(){
+    if (spinning) return;
+    WHEEL.style.transition = 'transform 380ms ease';
+    WHEEL.style.transform = 'rotate(0deg)';
+    currentRotation = 0;
+    STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
+  }
+
+  /* ======= Modal Controls ======= */
+  function openPlayerModal(){
+    FORM_PLAYER.reset();
+    MODAL_BACKDROP.classList.add('show-modal');
+    setTimeout(()=> INPUT_NAME.focus(), 0);
+  }
+  function closePlayerModal(){
+    MODAL_BACKDROP.classList.remove('show-modal');
+  }
+  BTN_ADD_PLAYER.addEventListener('click', openPlayerModal);
+  BTN_CANCEL_PLAYER.addEventListener('click', closePlayerModal);
+  MODAL_BACKDROP.addEventListener('click', (e)=>{
+    if (e.target === MODAL_BACKDROP) closePlayerModal();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Escape' && MODAL_BACKDROP.classList.contains('show-modal')) closePlayerModal();
+  });
+
+  FORM_PLAYER.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = (INPUT_NAME.value || '').trim();
+    const surname = (INPUT_SURNAME.value || '').trim();
+    const phone = (INPUT_PHONE.value || '').trim();
+
+    if (!name || !surname || !phone){
+      showToast('Please fill in all fields.', false);
+      return;
+    }
+
+    currentPlayer = { name, surname, phone };
+    STATUS.innerHTML = `Player: <strong>${name} ${surname}</strong> ready to spin.`;
+    showToast(`Player <strong>${name} ${surname}</strong> added.`, true);
+    closePlayerModal();
+  });
+
+  /* ======= Events & A11y ======= */
+  BTN_SPIN.addEventListener('click', spin);
+  BTN_RESET.addEventListener('click', resetWheel);
+
+  document.addEventListener('keydown', (e)=>{
+    if (e.code === 'Space' || e.key === 'Enter'){
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+      const modalOpen = MODAL_BACKDROP.classList.contains('show-modal');
+      if (!isTyping && !modalOpen){
+        e.preventDefault();
+        spin();
+      }
+    } else if ((e.key === 'r' || e.key === 'R') && !spinning){
+      resetWheel();
+    } else if ((e.key === 'a' || e.key === 'A') && !spinning){
+      openPlayerModal();
+    }
+  });
+
+  /* Make confetti canvas match stage */
+  function sizeConfetti(){
+    const rect = document.querySelector('.stage').getBoundingClientRect();
+    CONFETTI.width = rect.width;
+    CONFETTI.height = rect.height;
+  }
+
+  // Initialize
+  window.addEventListener('resize', sizeConfetti, { passive:true });
+  sizeConfetti();
+  loadDailyWins();
+  loadPlays();
 </script>
 </body>
 </html>
