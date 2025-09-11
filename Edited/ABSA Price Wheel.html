@@ -12,11 +12,11 @@
     --absa-dark:#000000;
     --absa-gray:#333333;
     --absa-light:#F5F5F5;
-    --absa-gold:#FFC72C;
+    --absa-gold:#000000;
     --absa-silver:#D9D9D9;
 
     /* Theme */
-    --bg: var(--absa-light);
+    --bg: #ffffff;
     --panel:#ffffff;
     --panel-2:#f3f3f3;
     --text: var(--absa-dark);
@@ -38,30 +38,33 @@
     --focus: 0 0 0 3px rgba(228,30,45,.15), 0 0 0 6px rgba(228,30,45,.12);
   }
 
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg: #0e0e0f;
-      --panel:#121213;
-      --panel-2:#1a1a1b;
-      --text:#f7f7f7;
-      --muted:#b4b4b4;
-      --ring:#262627;
-    }
-  }
-
   *{ box-sizing:border-box }
   html,body{ height:100% }
   body{
     margin:0;
     font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
     color:var(--text);
-    background:
-      radial-gradient(1200px 800px at 50% -10%, rgba(255, 251, 251, 0.12), transparent 60%),
-      radial-gradient(900px 600px at 10% 120%, rgba(252, 251, 251, 0.08), transparent 60%),
-      var(--bg);
+    background: var(--bg);
+    background-size: 120px;
+    background-position: center;
+    background-attachment: fixed;
     display:grid;
     place-items:center;
     padding:22px;
+    position: relative;
+  }
+
+  /* Add overlay to ensure content remains readable */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    opacity: 0.92;
+    z-index: -1;
   }
 
   .app{
@@ -70,6 +73,8 @@
     gap:24px;
     justify-items:center;
     text-align:center;
+    position: relative;
+    z-index: 1;
   }
 
   /* Header bar */
@@ -120,16 +125,8 @@
     display:grid; place-items:center;
     filter: drop-shadow(0 14px 28px rgba(0,0,0,.18));
   }
-  /* nice base ring shadow */
-  .wheel-wrap::after{
-    content:"";
-    position:absolute; inset:4%;
-    border-radius:50%;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 0 0 32px rgba(0,0,0,.06);
-    pointer-events:none;
-  }
 
-  /* Pointer (polished brass vibe) */
+  /* Pointer */
   .pointer{
     position:absolute; top:-2px; left:50%;
     transform: translateX(-50%) rotate(180deg);
@@ -228,17 +225,9 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
 
-  /* Reduced motion */
-  @media (prefers-reduced-motion: reduce){
-    :root{ --spin-ms: 1400ms }
-    .spinning .pointer{ animation:none }
-    *{ scroll-behavior:auto !important }
-  }
-
-  /* Mobile tweaks */
-  @media (max-width: 640px) {
-    .controls{ flex-direction: column }
-    .readout{ order:3; width:100% }
+  /* Prize counter */
+  .prize-counter {
+    display: none;
   }
 
   /* SVG text legibility chip */
@@ -250,27 +239,68 @@
   }
 
   /* Focus visible on the main buttons for keyboard users */
-  #spinBtn:focus-visible, #resetBtn:focus-visible{
+  #spinBtn:focus-visible, #resetBtn:focus-visible, #addPlayerBtn:focus-visible {
     outline:none; box-shadow: var(--focus);
   }
 
-  /* (Unused now) wobble animation kept for reference
-  .spinning .pointer{ animation: wobble .26s ease-in-out infinite; transform-origin: 50% 120%; }
-  @keyframes wobble{
-    0%,100%{ transform: translateX(-50%) rotate(178deg) }
-    50%{ transform: translateX(-50%) rotate(182deg) }
-  } */
+  /* Reduced font sizes for wheel text */
+  #wheel text {
+    font-size: 2.4px; /* Reduced from 2.8px */
+    font-weight: 700;
+  }
+
+  /* Even smaller font for longer text */
+  .smaller-text {
+    font-size: 2.1px !important;
+  }
+
+  /* ===== Modal (minimal, matches existing style language) ===== */
+  .modal-backdrop{
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display:none; align-items:center; justify-content:center; z-index: 200;
+  }
+  .modal{
+    width: min(92vw, 560px);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--ring);
+    box-shadow: var(--shadow-2);
+    border-radius:16px;
+    padding:18px;
+    text-align:left;
+  }
+  .modal h3{
+    margin:0 0 10px 0;
+    font-size: clamp(18px, 2.6vmin, 22px);
+    font-weight:900;
+    letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .field{
+    display:grid; gap:6px; margin:10px 0;
+  }
+  .field label{
+    font-weight:800; color:var(--absa-dark); font-size:14px;
+  }
+  .field input{
+    padding:12px 12px; border-radius:10px; border:1px solid var(--ring); background:#fff; font-size:14px;
+  }
+  .modal-actions{
+    display:flex; gap:12px; justify-content:flex-end; margin-top:14px;
+  }
+  .btn-secondary{
+    background: linear-gradient(180deg, #3b3b3b, #202020) !important;
+    box-shadow: 0 8px 16px rgba(0,0,0,.25) !important;
+  }
+  .show-modal{ display:flex; }
 </style>
 </head>
 <body>
   <main class="app" role="main" aria-label="ABSA Prize Wheel">
-    <div class="absa-header" role="banner">
-      <div class="absa-logo" aria-label="ABSA Bank">ABSA<span>•</span>BANK</div>
-    </div>
     
     <header>
       <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win classic rewards. Four prizes plus “Try Again” and “Extra Spin”. Simple. Fair. Fun.</p>
+      <p class="sub">Spin the wheel to win exciting rewards!</p>
     </header>
 
     <section class="stage" aria-live="polite">
@@ -281,7 +311,7 @@
 
       <!-- SVG Wheel -->
       <div class="wheel-wrap" aria-hidden="false">
-        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 8 segments">
+        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 12 segments">
           <defs>
             <!-- rim -->
             <radialGradient id="rim" cx="50%" cy="50%" r="60%">
@@ -299,27 +329,16 @@
               <stop offset="0%" stop-color="white" stop-opacity="0.22"/>
               <stop offset="100%" stop-color="white" stop-opacity="0"/>
             </radialGradient>
-            <!-- inner ring sheen -->
-            <radialGradient id="inner" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#fafafa"/>
-              <stop offset="100%" stop-color="#eaeaea"/>
-            </radialGradient>
           </defs>
 
           <!-- outer rim -->
           <circle r="49" fill="url(#rim)" stroke="rgba(0,0,0,.08)" stroke-width="1"></circle>
 
-          <!-- inner ring to add depth -->
-          <circle r="44.2" fill="url(#inner)" stroke="#ddd" stroke-width=".6"></circle>
-
           <g id="segments"></g>
-          <g id="ticks" stroke="#000" stroke-opacity=".12" stroke-width=".28"></g>
 
-          <!-- hub -->
-          <circle r="10.8" fill="#0f0f10" stroke="#4a4a4a" stroke-width="1.1"></circle>
-          <circle r="7.2" fill="url(#absa-red-grad)" stroke="#fff" stroke-width=".8"></circle>
-          <text y="2" text-anchor="middle" fill="white" font-size="3.2" font-weight="800" aria-hidden="true">ABSA</text>
-
+          <!-- ABSA logo in center -->
+          <image href="assets/absa_logo.png" x="-10.8" y="-10.8" width="21.6" height="21.6" />
+          
           <!-- gloss -->
           <circle r="49" fill="url(#gloss)" stroke="none" pointer-events="none"></circle>
         </svg>
@@ -329,56 +348,252 @@
     <section class="controls" aria-label="Controls">
       <button id="spinBtn" type="button" aria-controls="wheel" aria-label="Start spin (or press Space)">🎯 Spin Wheel</button>
       <button id="resetBtn" type="button" aria-label="Reset wheel">↺ Reset Wheel</button>
+      <!-- NEW: Add Player button -->
+      <button id="addPlayerBtn" type="button" aria-label="Add player">➕ Add Player</button>
       <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
     </section>
+
+    <div id="prizeCounter" class="prize-counter">
+      <h3>Daily Prize Limits</h3>
+      <div class="prize-grid">
+        <div class="prize-item">
+          <span class="prize-name">Pens:</span>
+          <span class="prize-count"><span id="pen-count">0</span>/50</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Cooler Bags:</span>
+          <span class="prize-count"><span id="cooler-count">0</span>/10</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Notebooks:</span>
+          <span class="prize-count"><span id="notebook-count">0</span>/20</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Bucket Hats:</span>
+          <span class="prize-count"><span id="hat-count">0</span>/10</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Tumblers:</span>
+          <span class="prize-count"><span id="tumbler-count">0</span>/5</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Vouchers:</span>
+          <span class="prize-count"><span id="voucher-count">0</span>/3</span>
+        </div>
+      </div>
+    </div>
 
     <div id="toast" class="toast" role="status" aria-live="assertive"></div>
   </main>
 
+  <!-- NEW: Player Modal -->
+  <div id="playerModalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h3 id="modalTitle">Add Player</h3>
+      <form id="playerForm">
+        <div class="field">
+          <label for="playerName">Name</label>
+          <input id="playerName" name="name" type="text" placeholder="Full name" required />
+        </div>
+        <div class="field">
+          <label for="playerEmail">Email Address</label>
+          <input id="playerEmail" name="email" type="email" placeholder="name@example.com" required />
+        </div>
+        <div class="field">
+          <label for="playerPhone">Phone Number</label>
+          <input id="playerPhone" name="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelPlayer" class="btn-secondary">Cancel</button>
+          <button type="submit" id="savePlayer">Save Player</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 <script>
 /* ======= CONFIG ======= */
-const PRIZES = ["Bucket Hat", "Tumbler", "Notebook", "Cooler Bag"];
+const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
+// Updated to only use "Oops!" and "Next time!" messages
+const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time!"];
+
+// Daily limits for prizes
+const DAILY_LIMITS = {
+  "Pen": 50,
+  "Cooler Bag": 10,
+  "Notebook": 20,
+  "Bucket Hat": 10,
+  "Tumbler": 5,
+  "Voucher": 3
+};
 
 const WHEEL = document.getElementById('wheel');
 const SEG_GROUP = document.getElementById('segments');
-const TICK_GROUP = document.getElementById('ticks');
 const STATUS = document.getElementById('status');
 const BTN_SPIN = document.getElementById('spinBtn');
 const BTN_RESET = document.getElementById('resetBtn');
+const BTN_ADD_PLAYER = document.getElementById('addPlayerBtn');
 const TOAST = document.getElementById('toast');
 const CONFETTI = document.getElementById('confetti');
 
-const SEG_SIZE = 45;               // degrees per segment (8 total)
-const CENTER_OFFSET = SEG_SIZE/2;  // 22.5°
+// Modal elems
+const MODAL_BACKDROP = document.getElementById('playerModalBackdrop');
+const FORM_PLAYER = document.getElementById('playerForm');
+const INPUT_NAME = document.getElementById('playerName');
+const INPUT_EMAIL = document.getElementById('playerEmail');
+const INPUT_PHONE = document.getElementById('playerPhone');
+const BTN_CANCEL_PLAYER = document.getElementById('cancelPlayer');
+
+// Prize counter elements
+const PEN_COUNT = document.getElementById('pen-count');
+const COOLER_COUNT = document.getElementById('cooler-count');
+const NOTEBOOK_COUNT = document.getElementById('notebook-count');
+const HAT_COUNT = document.getElementById('hat-count');
+const TUMBLER_COUNT = document.getElementById('tumbler-count');
+const VOUCHER_COUNT = document.getElementById('voucher-count');
+
+// 12 segments (30 degrees each)
+const SEG_COUNT = 12;
+const SEG_SIZE = 360 / SEG_COUNT;
+const CENTER_OFFSET = SEG_SIZE/2;
 const FULL = 360;
-const R = 46;     // slice radius inside rim
-const TXT_R = 30; // text radius for readability
+const R = 46;
+const TXT_R = 30;
 
 let spinning = false;
 let currentRotation = 0;
 
-/* Build segments list */
+/* ===== Player & Logging ===== */
+let currentPlayer = null; // {name, email, phone}
+let plays = [];           // array of {name, email, cell, prize, timestamp}
+
+// Storage keys
+const LS_WINS = 'absaWheelDailyWins';
+const LS_PLAYS = 'absaWheelPlays';
+
+// Track daily wins
+let dailyWins = {
+  "Pen": 0,
+  "Cooler Bag": 0,
+  "Notebook": 0,
+  "Bucket Hat": 0,
+  "Tumbler": 0,
+  "Voucher": 0,
+  total: 0
+};
+
+// Build segments list with alternating prizes and lose messages
 const segments = [
-  { label: PRIZES[0], type: 'win' },
-  { label: 'Try Again', type: 'try' },
-  { label: PRIZES[1], type: 'win' },
-  { label: 'Extra Spin', type: 'extra' },
-  { label: PRIZES[2], type: 'win' },
-  { label: 'Try Again', type: 'try' },
-  { label: PRIZES[3], type: 'win' },
-  { label: 'Extra Spin', type: 'extra' },
+  { label: PRIZES[0], type: 'win' },        // Pen
+  { label: LOSE_MESSAGES[0], type: 'lose' }, // Oops!
+  { label: PRIZES[1], type: 'win' },        // Cooler Bag
+  { label: LOSE_MESSAGES[1], type: 'lose' }, // Next time!
+  { label: PRIZES[2], type: 'win' },        // Notebook
+  { label: LOSE_MESSAGES[2], type: 'lose' }, // Oops!
+  { label: PRIZES[3], type: 'win' },        // Bucket Hat
+  { label: LOSE_MESSAGES[3], type: 'lose' }, // Next time!
+  { label: PRIZES[4], type: 'win' },        // Tumbler
+  { label: LOSE_MESSAGES[4], type: 'lose' }, // Oops!
+  { label: PRIZES[5], type: 'win' },        // Voucher
+  { label: LOSE_MESSAGES[5], type: 'lose' }  // Next time!
 ];
+
+/* ===== Local Storage Helpers ===== */
+function loadPlays(){
+  try {
+    const raw = localStorage.getItem(LS_PLAYS);
+    plays = raw ? JSON.parse(raw) : [];
+  } catch(e){
+    plays = [];
+  }
+}
+function savePlays(){
+  localStorage.setItem(LS_PLAYS, JSON.stringify(plays));
+}
+function downloadPlaysJSON(){
+  const blob = new Blob([JSON.stringify(plays, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'absa_plays.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Load saved daily wins from localStorage
+function loadDailyWins() {
+  const today = new Date().toDateString();
+  const savedData = localStorage.getItem(LS_WINS);
+  
+  if (savedData) {
+    const parsedData = JSON.parse(savedData);
+    if (parsedData.date === today) {
+      dailyWins = parsedData.wins;
+      updatePrizeCounters();
+      return;
+    }
+  }
+  resetDailyWins();
+}
+
+// Save daily wins to localStorage
+function saveDailyWins() {
+  const today = new Date().toDateString();
+  const dataToSave = {
+    date: today,
+    wins: dailyWins
+  };
+  localStorage.setItem(LS_WINS, JSON.stringify(dataToSave));
+}
+
+// Reset daily wins
+function resetDailyWins() {
+  dailyWins = {
+    "Pen": 0,
+    "Cooler Bag": 0,
+    "Notebook": 0,
+    "Bucket Hat": 0,
+    "Tumbler": 0,
+    "Voucher": 0,
+    total: 0
+  };
+  saveDailyWins();
+  updatePrizeCounters();
+}
+
+// Update prize counters display
+function updatePrizeCounters() {
+  PEN_COUNT.textContent = dailyWins["Pen"];
+  COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
+  NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
+  HAT_COUNT.textContent = dailyWins["Bucket Hat"];
+  TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
+  VOUCHER_COUNT.textContent = dailyWins["Voucher"];
+}
+
+// Check if a prize is still available
+function isPrizeAvailable(prize) {
+  return dailyWins[prize] < DAILY_LIMITS[prize];
+}
+
+// Check if any prize is still available
+function arePrizesAvailable() {
+  return Object.values(DAILY_LIMITS).some((limit, index) => 
+    dailyWins[Object.keys(DAILY_LIMITS)[index]] < limit
+  );
+}
 
 /* ABSA Color palette */
 const FILL_A = '#ffffff';
 const FILL_B = '#f7f7f7';
 const TEXT_WIN = '#E41E2D';
-const TEXT_TRY = '#666666';
-const TEXT_EXTRA = '#000000';
+const TEXT_LOSE = '#666666';
 
 /* ======= SVG helpers ======= */
 function polarToXY(deg, radius){
-  const rad = (deg - 90) * Math.PI / 180; // start from top
+  const rad = (deg - 90) * Math.PI / 180;
   return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
 }
 
@@ -398,19 +613,28 @@ function addTextAt(angleDeg, text, color){
 
   t.textContent = text;
   t.setAttribute('fill', color);
-  t.setAttribute('font-size', '2.6');   // smaller labels (was 3.5)
-  t.setAttribute('font-weight', '800');
+  t.setAttribute('font-size', '2.4'); // Reduced from 2.8px
+  t.setAttribute('font-weight', '700');
   t.setAttribute('text-anchor','middle');
   t.setAttribute('dominant-baseline','central');
+  
+  // Apply smaller font for longer text
+  if (text.length > 8) {
+    t.setAttribute('class', 'smaller-text');
+  }
+
+  // Rotate text to be vertical (perpendicular to the radius)
+  t.setAttribute('transform', `rotate(${angleDeg + 90})`);
 
   // chip bg for legibility
-  const padX = Math.max(10, text.length * 1.8);
-  const padY = 6;
+  const padX = Math.max(10, text.length * 1.6); // Reduced padding
+  const padY = 5; // Reduced padding
   bg.setAttribute('x', (-padX/2).toString());
   bg.setAttribute('y', (-padY/2).toString());
   bg.setAttribute('width', padX.toString());
   bg.setAttribute('height', padY.toString());
   bg.setAttribute('class','label-chip');
+  bg.setAttribute('transform', `rotate(${angleDeg + 90})`);
 
   g.appendChild(bg);
   g.appendChild(t);
@@ -419,9 +643,8 @@ function addTextAt(angleDeg, text, color){
 
 function buildWheel(){
   SEG_GROUP.innerHTML = '';
-  TICK_GROUP.innerHTML = '';
 
-  for (let i=0; i<8; i++){
+  for (let i=0; i<SEG_COUNT; i++){
     const start = i * SEG_SIZE;
     const end   = (i+1) * SEG_SIZE;
     const center= start + CENTER_OFFSET;
@@ -430,7 +653,6 @@ function buildWheel(){
     // slice
     const path = document.createElementNS('http://www.w3.org/2000/svg','path');
     path.setAttribute('d', describeSlice(start, end, R));
-    // Use ABSA red for winning segments, alternating light colors for others
     if (seg.type === 'win') {
       path.setAttribute('fill', 'url(#absa-red-grad)');
     } else {
@@ -441,29 +663,38 @@ function buildWheel(){
     SEG_GROUP.appendChild(path);
 
     // text
-    let color = TEXT_EXTRA;
+    let color = TEXT_LOSE;
     if (seg.type === 'win')  color = TEXT_WIN;
-    if (seg.type === 'try')  color = TEXT_TRY;
     addTextAt(center, seg.label, color);
-
-    // tick marks
-    const tick = document.createElementNS('http://www.w3.org/2000/svg','line');
-    const a = polarToXY(start, R+0.2);
-    const b = polarToXY(start, R-4);
-    tick.setAttribute('x1', a.x.toFixed(2));
-    tick.setAttribute('y1', a.y.toFixed(2));
-    tick.setAttribute('x2', b.x.toFixed(2));
-    tick.setAttribute('y2', b.y.toFixed(2));
-    tick.setAttribute('stroke', 'rgba(0,0,0,.12)');
-    tick.setAttribute('stroke-width', '.45');
-    TICK_GROUP.appendChild(tick);
   }
 }
 buildWheel();
 
 /* ======= Spin Logic ======= */
 function pickIndexFair(){
-  return Math.floor(Math.random() * segments.length);
+  if (!arePrizesAvailable()) {
+    const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+    return loseIndices[Math.floor(Math.random() * loseIndices.length)];
+  }
+  
+  let selectedIndex = Math.floor(Math.random() * segments.length);
+  const selectedSegment = segments[selectedIndex];
+  
+  if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
+    const availablePrizes = segments.filter(seg => 
+      seg.type === 'win' && isPrizeAvailable(seg.label)
+    );
+    
+    if (availablePrizes.length > 0) {
+      const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+      selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
+    } else {
+      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+      selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+    }
+  }
+  
+  return selectedIndex;
 }
 
 function celebrate(){
@@ -471,7 +702,6 @@ function celebrate(){
   const rect = document.querySelector('.stage').getBoundingClientRect();
   const width = rect.width, height = rect.height;
 
-  // scale for crispness
   const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
   CONFETTI.width = width * dpr;
   CONFETTI.height = height * dpr;
@@ -514,53 +744,82 @@ function showToast(html, nice=false){
   setTimeout(()=> TOAST.classList.remove('show'), 2600);
 }
 
+/* NEW: Guard — require a player before spinning */
+function ensurePlayerSelected(){
+  if (!currentPlayer){
+    showToast('Add a player first to spin.', false);
+    BTN_ADD_PLAYER.focus();
+    return false;
+  }
+  return true;
+}
+
 function spin(){
   if (spinning) return;
+  if (!ensurePlayerSelected()) return;
+
   spinning = true;
   document.body.classList.add('spinning');
   BTN_SPIN.disabled = true;
   BTN_RESET.disabled = true;
+  BTN_ADD_PLAYER.disabled = true;
   STATUS.innerHTML = 'Spinning…';
 
   const idx = pickIndexFair();
   const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
 
-  // add several full turns for satisfaction
-  const fullTurns = 8 + Math.floor(Math.random()*4); // 8–11
-  const jitter = (Math.random()*6) - 3; // ±3°
+  const fullTurns = 8 + Math.floor(Math.random()*4);
+  const jitter = (Math.random()*6) - 3;
 
-  // We rotate from currentRotation to newRotation
   const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
 
-  // animate via CSS transform on the SVG element container
   const node = WHEEL;
   node.style.transition = `transform var(--spin-ms) var(--bezier)`;
   node.style.transform = `rotate(${finalRotation}deg)`;
   currentRotation = finalRotation;
 
-  // After spin ends, announce result
   const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
   const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
 
   setTimeout(()=>{
     const result = segments[idx];
     let msg;
-    if (result.type === 'win'){
-      msg = `🎉 You won <strong>${result.label}</strong>!`;
+    let prizeText = "Nothing won";
+    
+    if (result.type === 'win' && isPrizeAvailable(result.label)){
+      dailyWins[result.label]++;
+      dailyWins.total++;
+      saveDailyWins();
+      updatePrizeCounters();
+      
+      prizeText = result.label;
+      msg = `🎉 You won a <strong>${result.label}</strong>!`;
       showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
       celebrate();
-    } else if (result.type === 'extra'){
-      msg = `↻ <strong>${result.label}</strong> — spin again!`;
-      showToast('Extra spin unlocked! Try again.', false);
     } else {
       msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
       showToast('Try again — your next spin could be a winner!', false);
     }
-    STATUS.innerHTML = msg;
+
+    // NEW: Log the play for the current player
+    const record = {
+      name: currentPlayer.name,
+      email: currentPlayer.email,
+      cell: currentPlayer.phone,
+      prize: prizeText,
+      timestamp: new Date().toISOString()
+    };
+    plays.push(record);
+    savePlays();
+    // Auto-generate a downloadable JSON file (browser will prompt)
+    downloadPlaysJSON();
+
+    STATUS.innerHTML = `${msg}`;
     spinning = false;
     document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
     BTN_RESET.disabled = false;
+    BTN_ADD_PLAYER.disabled = false;
   }, dur + 60);
 }
 
@@ -569,33 +828,85 @@ function resetWheel(){
   WHEEL.style.transition = 'transform 380ms ease';
   WHEEL.style.transform = 'rotate(0deg)';
   currentRotation = 0;
-  STATUS.innerHTML = 'Wheel reset. Press <strong>Spin Wheel</strong> to play.';
+  STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
 }
+
+/* ======= Modal Controls ======= */
+function openPlayerModal(){
+  FORM_PLAYER.reset();
+  MODAL_BACKDROP.classList.add('show-modal');
+  setTimeout(()=> INPUT_NAME.focus(), 0);
+}
+function closePlayerModal(){
+  MODAL_BACKDROP.classList.remove('show-modal');
+}
+BTN_ADD_PLAYER.addEventListener('click', openPlayerModal);
+BTN_CANCEL_PLAYER.addEventListener('click', closePlayerModal);
+MODAL_BACKDROP.addEventListener('click', (e)=>{
+  if (e.target === MODAL_BACKDROP) closePlayerModal();
+});
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape' && MODAL_BACKDROP.classList.contains('show-modal')) closePlayerModal();
+});
+
+FORM_PLAYER.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const name = (INPUT_NAME.value || '').trim();
+  const email = (INPUT_EMAIL.value || '').trim();
+  const phone = (INPUT_PHONE.value || '').trim();
+
+  // light validation
+  if (!name || !email || !phone){
+    showToast('Please fill in all fields.', false);
+    return;
+  }
+  // Basic email pattern check
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailOk){
+    showToast('Enter a valid email address.', false);
+    INPUT_EMAIL.focus();
+    return;
+  }
+
+  currentPlayer = { name, email, phone };
+  STATUS.innerHTML = `Player: <strong>${name}</strong> ready to spin.`;
+  showToast(`Player <strong>${name}</strong> added.`, true);
+  closePlayerModal();
+});
 
 /* ======= Events & A11y ======= */
 BTN_SPIN.addEventListener('click', spin);
 BTN_RESET.addEventListener('click', resetWheel);
 
 document.addEventListener('keydown', (e)=>{
-  // Space or Enter will spin; R resets
   if (e.code === 'Space' || e.key === 'Enter'){
-    e.preventDefault();
-    spin();
+    // Avoid triggering Space inside inputs / modal
+    const active = document.activeElement;
+    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+    const modalOpen = MODAL_BACKDROP.classList.contains('show-modal');
+    if (!isTyping && !modalOpen){
+      e.preventDefault();
+      spin();
+    }
   } else if ((e.key === 'r' || e.key === 'R') && !spinning){
     resetWheel();
+  } else if ((e.key === 'a' || e.key === 'A') && !spinning){
+    openPlayerModal();
   }
 });
 
 /* Make confetti canvas match stage */
 function sizeConfetti(){
   const rect = document.querySelector('.stage').getBoundingClientRect();
-  // regular size; drawing scale handled in celebrate()
   CONFETTI.width = rect.width;
   CONFETTI.height = rect.height;
 }
+
+// Initialize
 window.addEventListener('resize', sizeConfetti, { passive:true });
 sizeConfetti();
-
+loadDailyWins();
+loadPlays();
 </script>
 </body>
 </html>

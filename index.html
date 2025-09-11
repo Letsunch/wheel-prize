@@ -239,7 +239,7 @@
   }
 
   /* Focus visible on the main buttons for keyboard users */
-  #spinBtn:focus-visible, #resetBtn:focus-visible {
+  #spinBtn:focus-visible, #resetBtn:focus-visible, #addPlayerBtn:focus-visible {
     outline:none; box-shadow: var(--focus);
   }
 
@@ -253,6 +253,46 @@
   .smaller-text {
     font-size: 2.1px !important;
   }
+
+  /* ===== Modal (minimal, matches existing style language) ===== */
+  .modal-backdrop{
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display:none; align-items:center; justify-content:center; z-index: 200;
+  }
+  .modal{
+    width: min(92vw, 560px);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--ring);
+    box-shadow: var(--shadow-2);
+    border-radius:16px;
+    padding:18px;
+    text-align:left;
+  }
+  .modal h3{
+    margin:0 0 10px 0;
+    font-size: clamp(18px, 2.6vmin, 22px);
+    font-weight:900;
+    letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .field{
+    display:grid; gap:6px; margin:10px 0;
+  }
+  .field label{
+    font-weight:800; color:var(--absa-dark); font-size:14px;
+  }
+  .field input{
+    padding:12px 12px; border-radius:10px; border:1px solid var(--ring); background:#fff; font-size:14px;
+  }
+  .modal-actions{
+    display:flex; gap:12px; justify-content:flex-end; margin-top:14px;
+  }
+  .btn-secondary{
+    background: linear-gradient(180deg, #3b3b3b, #202020) !important;
+    box-shadow: 0 8px 16px rgba(0,0,0,.25) !important;
+  }
+  .show-modal{ display:flex; }
 </style>
 </head>
 <body>
@@ -308,6 +348,8 @@
     <section class="controls" aria-label="Controls">
       <button id="spinBtn" type="button" aria-controls="wheel" aria-label="Start spin (or press Space)">🎯 Spin Wheel</button>
       <button id="resetBtn" type="button" aria-label="Reset wheel">↺ Reset Wheel</button>
+      <!-- NEW: Add Player button -->
+      <button id="addPlayerBtn" type="button" aria-label="Add player">➕ Add Player</button>
       <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
     </section>
 
@@ -344,6 +386,31 @@
     <div id="toast" class="toast" role="status" aria-live="assertive"></div>
   </main>
 
+  <!-- NEW: Player Modal -->
+  <div id="playerModalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h3 id="modalTitle">Add Player</h3>
+      <form id="playerForm">
+        <div class="field">
+          <label for="playerName">Name</label>
+          <input id="playerName" name="name" type="text" placeholder="Full name" required />
+        </div>
+        <div class="field">
+          <label for="playerEmail">Email Address</label>
+          <input id="playerEmail" name="email" type="email" placeholder="name@example.com" required />
+        </div>
+        <div class="field">
+          <label for="playerPhone">Phone Number</label>
+          <input id="playerPhone" name="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="cancelPlayer" class="btn-secondary">Cancel</button>
+          <button type="submit" id="savePlayer">Save Player</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 <script>
 /* ======= CONFIG ======= */
 const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
@@ -365,8 +432,17 @@ const SEG_GROUP = document.getElementById('segments');
 const STATUS = document.getElementById('status');
 const BTN_SPIN = document.getElementById('spinBtn');
 const BTN_RESET = document.getElementById('resetBtn');
+const BTN_ADD_PLAYER = document.getElementById('addPlayerBtn');
 const TOAST = document.getElementById('toast');
 const CONFETTI = document.getElementById('confetti');
+
+// Modal elems
+const MODAL_BACKDROP = document.getElementById('playerModalBackdrop');
+const FORM_PLAYER = document.getElementById('playerForm');
+const INPUT_NAME = document.getElementById('playerName');
+const INPUT_EMAIL = document.getElementById('playerEmail');
+const INPUT_PHONE = document.getElementById('playerPhone');
+const BTN_CANCEL_PLAYER = document.getElementById('cancelPlayer');
 
 // Prize counter elements
 const PEN_COUNT = document.getElementById('pen-count');
@@ -386,6 +462,14 @@ const TXT_R = 30;
 
 let spinning = false;
 let currentRotation = 0;
+
+/* ===== Player & Logging ===== */
+let currentPlayer = null; // {name, email, phone}
+let plays = [];           // array of {name, email, cell, prize, timestamp}
+
+// Storage keys
+const LS_WINS = 'absaWheelDailyWins';
+const LS_PLAYS = 'absaWheelPlays';
 
 // Track daily wins
 let dailyWins = {
@@ -414,10 +498,34 @@ const segments = [
   { label: LOSE_MESSAGES[5], type: 'lose' }  // Next time!
 ];
 
+/* ===== Local Storage Helpers ===== */
+function loadPlays(){
+  try {
+    const raw = localStorage.getItem(LS_PLAYS);
+    plays = raw ? JSON.parse(raw) : [];
+  } catch(e){
+    plays = [];
+  }
+}
+function savePlays(){
+  localStorage.setItem(LS_PLAYS, JSON.stringify(plays));
+}
+function downloadPlaysJSON(){
+  const blob = new Blob([JSON.stringify(plays, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'absa_plays.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // Load saved daily wins from localStorage
 function loadDailyWins() {
   const today = new Date().toDateString();
-  const savedData = localStorage.getItem('absaWheelDailyWins');
+  const savedData = localStorage.getItem(LS_WINS);
   
   if (savedData) {
     const parsedData = JSON.parse(savedData);
@@ -427,7 +535,6 @@ function loadDailyWins() {
       return;
     }
   }
-  
   resetDailyWins();
 }
 
@@ -438,19 +545,19 @@ function saveDailyWins() {
     date: today,
     wins: dailyWins
   };
-  localStorage.setItem('absaWheelDailyWins', JSON.stringify(dataToSave));
+  localStorage.setItem(LS_WINS, JSON.stringify(dataToSave));
 }
 
 // Reset daily wins
 function resetDailyWins() {
   dailyWins = {
-  "Pen": 0,
-  "Cooler Bag": 0,
-  "Notebook": 0,
-  "Bucket Hat": 0,
-  "Tumbler": 0,
-  "Voucher": 0,
-  total: 0
+    "Pen": 0,
+    "Cooler Bag": 0,
+    "Notebook": 0,
+    "Bucket Hat": 0,
+    "Tumbler": 0,
+    "Voucher": 0,
+    total: 0
   };
   saveDailyWins();
   updatePrizeCounters();
@@ -637,12 +744,25 @@ function showToast(html, nice=false){
   setTimeout(()=> TOAST.classList.remove('show'), 2600);
 }
 
+/* NEW: Guard — require a player before spinning */
+function ensurePlayerSelected(){
+  if (!currentPlayer){
+    showToast('Add a player first to spin.', false);
+    BTN_ADD_PLAYER.focus();
+    return false;
+  }
+  return true;
+}
+
 function spin(){
   if (spinning) return;
+  if (!ensurePlayerSelected()) return;
+
   spinning = true;
   document.body.classList.add('spinning');
   BTN_SPIN.disabled = true;
   BTN_RESET.disabled = true;
+  BTN_ADD_PLAYER.disabled = true;
   STATUS.innerHTML = 'Spinning…';
 
   const idx = pickIndexFair();
@@ -664,6 +784,7 @@ function spin(){
   setTimeout(()=>{
     const result = segments[idx];
     let msg;
+    let prizeText = "Nothing won";
     
     if (result.type === 'win' && isPrizeAvailable(result.label)){
       dailyWins[result.label]++;
@@ -671,6 +792,7 @@ function spin(){
       saveDailyWins();
       updatePrizeCounters();
       
+      prizeText = result.label;
       msg = `🎉 You won a <strong>${result.label}</strong>!`;
       showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
       celebrate();
@@ -678,12 +800,26 @@ function spin(){
       msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
       showToast('Try again — your next spin could be a winner!', false);
     }
-    
+
+    // NEW: Log the play for the current player
+    const record = {
+      name: currentPlayer.name,
+      email: currentPlayer.email,
+      cell: currentPlayer.phone,
+      prize: prizeText,
+      timestamp: new Date().toISOString()
+    };
+    plays.push(record);
+    savePlays();
+    // Auto-generate a downloadable JSON file (browser will prompt)
+    downloadPlaysJSON();
+
     STATUS.innerHTML = `${msg}`;
     spinning = false;
     document.body.classList.remove('spinning');
     BTN_SPIN.disabled = false;
     BTN_RESET.disabled = false;
+    BTN_ADD_PLAYER.disabled = false;
   }, dur + 60);
 }
 
@@ -695,16 +831,67 @@ function resetWheel(){
   STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
 }
 
+/* ======= Modal Controls ======= */
+function openPlayerModal(){
+  FORM_PLAYER.reset();
+  MODAL_BACKDROP.classList.add('show-modal');
+  setTimeout(()=> INPUT_NAME.focus(), 0);
+}
+function closePlayerModal(){
+  MODAL_BACKDROP.classList.remove('show-modal');
+}
+BTN_ADD_PLAYER.addEventListener('click', openPlayerModal);
+BTN_CANCEL_PLAYER.addEventListener('click', closePlayerModal);
+MODAL_BACKDROP.addEventListener('click', (e)=>{
+  if (e.target === MODAL_BACKDROP) closePlayerModal();
+});
+document.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape' && MODAL_BACKDROP.classList.contains('show-modal')) closePlayerModal();
+});
+
+FORM_PLAYER.addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const name = (INPUT_NAME.value || '').trim();
+  const email = (INPUT_EMAIL.value || '').trim();
+  const phone = (INPUT_PHONE.value || '').trim();
+
+  // light validation
+  if (!name || !email || !phone){
+    showToast('Please fill in all fields.', false);
+    return;
+  }
+  // Basic email pattern check
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  if (!emailOk){
+    showToast('Enter a valid email address.', false);
+    INPUT_EMAIL.focus();
+    return;
+  }
+
+  currentPlayer = { name, email, phone };
+  STATUS.innerHTML = `Player: <strong>${name}</strong> ready to spin.`;
+  showToast(`Player <strong>${name}</strong> added.`, true);
+  closePlayerModal();
+});
+
 /* ======= Events & A11y ======= */
 BTN_SPIN.addEventListener('click', spin);
 BTN_RESET.addEventListener('click', resetWheel);
 
 document.addEventListener('keydown', (e)=>{
   if (e.code === 'Space' || e.key === 'Enter'){
-    e.preventDefault();
-    spin();
+    // Avoid triggering Space inside inputs / modal
+    const active = document.activeElement;
+    const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+    const modalOpen = MODAL_BACKDROP.classList.contains('show-modal');
+    if (!isTyping && !modalOpen){
+      e.preventDefault();
+      spin();
+    }
   } else if ((e.key === 'r' || e.key === 'R') && !spinning){
     resetWheel();
+  } else if ((e.key === 'a' || e.key === 'A') && !spinning){
+    openPlayerModal();
   }
 });
 
@@ -719,6 +906,7 @@ function sizeConfetti(){
 window.addEventListener('resize', sizeConfetti, { passive:true });
 sizeConfetti();
 loadDailyWins();
+loadPlays();
 </script>
 </body>
 </html>
