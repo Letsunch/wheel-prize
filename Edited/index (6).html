@@ -1,727 +1,454 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>ABSA Prize Wheel</title>
-<style>
-  :root{
-    /* ABSA Brand */
-    --absa-red: #E41E2D;
-    --absa-red-2:#c11a26;
-    --absa-dark:#000000;
-    --absa-gray:#333333;
-    --absa-light:#F5F5F5;
-    --absa-gold:#FFC72C;
-    --absa-silver:#D9D9D9;
-
-    /* Theme */
-    --bg: #ffffff;
-    --panel:#ffffff;
-    --panel-2:#f3f3f3;
-    --text: var(--absa-dark);
-    --muted:#666;
-    --ring:#e6e6e6;
-
-    /* Wheel */
-    --wheel-size:min(76vmin, 640px);
-    --hub-size: 96px;
-    --pointer-size: 36px;
-
-    /* Motion */
-    --spin-ms: 4300ms;
-    --bezier: cubic-bezier(.15,.9,.1,1);
-
-    /* Depth */
-    --shadow-1: 0 6px 14px rgba(0,0,0,.12);
-    --shadow-2: 0 14px 30px rgba(0,0,0,.16);
-    --focus: 0 0 0 3px rgba(228,30,45,.15), 0 0 0 6px rgba(228,30,45,.12);
-  }
-
-  *{ box-sizing:border-box }
-  html,body{ height:100% }
-  body{
-    margin:0;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    color:var(--text);
-    background: var(--bg);
-    display:grid;
-    place-items:center;
-    padding:22px;
-  }
-
-  .app{
-    width:min(100%, 1080px);
-    display:grid;
-    gap:24px;
-    justify-items:center;
-    text-align:center;
-  }
-
-  /* Header bar */
-  .absa-header{
-    width:100%;
-    background: linear-gradient(180deg,#0f0f10, #000);
-    color:#fff;
-    padding:14px 18px;
-    border-radius:16px;
-    display:flex; align-items:center; justify-content:center; gap:12px;
-    box-shadow: var(--shadow-1);
-    border:1px solid rgba(255,255,255,.06);
-  }
-  .absa-logo{
-    font-weight:900;
-    font-size:24px;
-    letter-spacing:.6px;
-  }
-  .absa-logo span{ color:var(--absa-red) }
-
-  header h1{
-    margin:0 0 6px 0;
-    font-size:clamp(26px,3.8vmin,38px);
-    font-weight:900;
-    letter-spacing:.2px;
-    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-  }
-  .sub{
-    margin:0;
-    color:var(--muted);
-    font-size:clamp(14px,2vmin,17px);
-    max-width: 680px;
-    line-height:1.55;
-  }
-
-  /* Stage */
-  .stage{
-    position:relative;
-    width:var(--wheel-size);
-    aspect-ratio:1/1;
-    display:grid; place-items:center;
-  }
-
-  /* Wheel wrapper with drop shadow + subtle base */
-  .wheel-wrap{
-    position:absolute; inset:0;
-    display:grid; place-items:center;
-    filter: drop-shadow(0 14px 28px rgba(0,0,0,.18));
-  }
-
-  /* Pointer */
-  .pointer{
-    position:absolute; top:-2px; left:50%;
-    transform: translateX(-50%) rotate(180deg);
-    width:0; height:0;
-    border-left: var(--pointer-size) solid transparent;
-    border-right: var(--pointer-size) solid transparent;
-    border-bottom: calc(var(--pointer-size) * 1.62) solid var(--absa-gold);
-    filter: drop-shadow(0 6px 12px rgba(0,0,0,.25));
-    z-index:6;
-  }
-  .pointer::before{
-    content:"";
-    position:absolute; left:calc(-.5 * var(--pointer-size) + 2px); top:calc(var(--pointer-size) * 1.1);
-    width: calc(var(--pointer-size) - 4px); height: calc(var(--pointer-size) - 4px);
-    border-radius:50%;
-    background: radial-gradient(120% 120% at 30% 30%, #fff 0%, #f7f7f7 40%, #bbb 100%);
-    outline: 2px solid rgba(0,0,0,.25);
-    box-shadow: inset 0 2px 2px rgba(255,255,255,.45), inset 0 -3px 6px rgba(0,0,0,.25);
-  }
-
-  /* stop wobble while spinning so the dot doesn't bob */
-  .spinning .pointer{
-    animation: none;
-  }
-
-  /* Controls */
-  .controls{
-    display:flex; flex-wrap:wrap; gap:14px 16px; justify-content:center; align-items:center;
-    background: linear-gradient(180deg, var(--panel), var(--panel-2));
-    padding:18px 20px;
-    border-radius:16px;
-    box-shadow: var(--shadow-1);
-    border: 1px solid var(--ring);
-    width:min(100%, 820px);
-    backdrop-filter: saturate(1.2);
-  }
-  button{
-    appearance:none; border:0; cursor:pointer;
-    padding:14px 22px; border-radius:12px;
-    font-weight:800; letter-spacing:.2px;
-    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
-    color:white;
-    box-shadow: 0 8px 16px rgba(228,30,45,.25);
-    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
-    min-width: 148px;
-  }
-  button:hover{ 
-    transform: translateY(-1px);
-    box-shadow: 0 10px 18px rgba(228,30,45,.3);
-    filter: saturate(1.02);
-  }
-  button:active{ transform: translateY(0) scale(.99) }
-  button[disabled]{ opacity:.65; cursor:not-allowed; filter:grayscale(.1) }
-  button:focus-visible{ outline:none; box-shadow: var(--focus) }
-
-  #resetBtn{
-    background: linear-gradient(180deg, #3b3b3b, #202020);
-    box-shadow: 0 8px 16px rgba(0,0,0,.25);
-  }
-  #resetBtn:hover{ filter:brightness(1.02) }
-
-  .readout{ 
-    flex: 1 1 320px; 
-    text-align:center; 
-    color:var(--muted); 
-    font-weight:700;
-    padding: 10px 12px;
-    background: var(--panel-2);
-    border-radius: 10px;
-    border:1px solid var(--ring);
-  }
-  .readout strong{ color:var(--absa-red) }
-
-  /* Toast */
-  .toast{
-    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(18px);
-    background: var(--panel);
-    color:var(--text); 
-    border-radius:14px; 
-    padding:16px 20px;
-    box-shadow: var(--shadow-2);
-    border: 1px solid var(--ring);
-    opacity:0; 
-    pointer-events:none; 
-    transition: all .35s var(--bezier);
-    max-width:min(92vw, 620px);
-    font-weight: 800;
-    text-align: center;
-    z-index: 100;
-  }
-  .toast.win{
-    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
-    color: white;
-    border-color: rgba(255,255,255,.22);
-    text-shadow: 0 1px 0 rgba(0,0,0,.25);
-  }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
-
-  /* Prize counter */
-  .prize-counter {
-    margin-top: 10px;
-    font-size: 14px;
-    color: var(--muted);
-    background: var(--panel-2);
-    padding: 10px 15px;
-    border-radius: 10px;
-    border: 1px solid var(--ring);
-    width: min(100%, 820px);
-  }
-  .prize-counter h3 {
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    color: var(--absa-red);
-  }
-  .prize-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-  }
-  .prize-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 5px 0;
-    border-bottom: 1px dashed var(--ring);
-  }
-  .prize-name {
-    font-weight: 600;
-  }
-  .prize-count {
-    font-weight: 700;
-    color: var(--absa-red);
-  }
-
-  /* SVG text legibility chip */
-  .label-chip{
-    fill: rgba(255,255,255,.92);
-    stroke: rgba(0,0,0,.10);
-    stroke-width:.3;
-    rx:4; ry:4;
-  }
-
-  /* Focus visible on the main buttons for keyboard users */
-  #spinBtn:focus-visible, #resetBtn:focus-visible{
-    outline:none; box-shadow: var(--focus);
-  }
-
-  /* Reduced font sizes for wheel text */
-  #wheel text {
-    font-size: 2.8px;
-    font-weight: 700;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMANDLA LISTENING SESSION - RSVP</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Permanent+Marker&family=Press+Start+2P&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Bebas Neue', cursive;
+            background-color: #0D0D0D;
+            color: #E6E3DE;
+            line-height: 1.6;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(71, 59, 49, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(122, 110, 95, 0.2) 0%, transparent 20%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 700px;
+            margin: 20px auto;
+            border: 3px solid #7A6E5F;
+            background-color: #1A1A1A;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(199, 192, 181, 0.2);
+        }
+        
+        .graffiti-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.05;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><text x="0" y="50" font-family="Arial" font-size="10" fill="%23E6E3DE">AMANDLA</text></svg>');
+            z-index: 0;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 20px 20px;
+            background: linear-gradient(to bottom, #2A2A2A, #1A1A1A);
+            border-bottom: 2px solid #7A6E5F;
+            position: relative;
+            z-index: 1;
+        }
+        
+        h1 {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 62px;
+            color: #E6E3DE;
+            text-transform: uppercase;
+            margin: 0;
+            text-shadow: 3px 3px 0 #473B31, 6px 6px 0 #000;
+            letter-spacing: 2px;
+            transform: skew(-5deg, 0);
+        }
+        
+        h2 {
+            font-family: 'Anton', sans-serif;
+            font-size: 36px;
+            color: #C7C0B5;
+            margin: 5px 0 15px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 0 #000;
+        }
+        
+        .info-container {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .info-item {
+            text-align: center;
+            padding: 10px 15px;
+            background: rgba(71, 59, 49, 0.3);
+            border: 1px solid #7A6E5F;
+            border-radius: 4px;
+            min-width: 140px;
+        }
+        
+        .info-title {
+            font-family: 'Anton', sans-serif;
+            font-size: 22px;
+            color: #E6E3DE;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .info-subtitle {
+            font-size: 16px;
+            color: #C7C0B5;
+            margin-top: 5px;
+            text-transform: uppercase;
+        }
+        
+        .countdown-section {
+            padding: 20px;
+            background: linear-gradient(to right, #2A2A2A, #1A1A1A);
+            text-align: center;
+            border-top: 2px solid #7A6E5F;
+            border-bottom: 2px solid #7A6E5F;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .countdown-title {
+            font-family: 'Anton', sans-serif;
+            font-size: 24px;
+            color: #E6E3DE;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 0 #000;
+        }
+        
+        #countdown {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .countdown-unit {
+            background: rgba(35, 35, 35, 0.9);
+            padding: 15px 10px;
+            border: 2px solid #7A6E5F;
+            border-radius: 5px;
+            min-width: 70px;
+            box-shadow: 0 4px 0 #000;
+        }
+        
+        .countdown-value {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 24px;
+            color: #E6E3DE;
+            text-shadow: 2px 2px 0 #7A6E5F;
+        }
+        
+        .countdown-label {
+            font-size: 14px;
+            color: #C7C0B5;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 5px;
+        }
+        
+        .form-section {
+            padding: 30px;
+            background-color: #1A1A1A;
+            position: relative;
+            z-index: 1;
+        }
+        
+        form {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #E6E3DE;
+            font-size: 18px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 14px;
+            background-color: #2A2A2A;
+            border: 2px solid #7A6E5F;
+            color: #E6E3DE;
+            font-size: 16px;
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 1px;
+            border-radius: 4px;
+        }
+        
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #C7C0B5;
+            box-shadow: 0 0 10px rgba(199, 192, 181, 0.5);
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #7A6E5F, #473B31);
+            color: #E6E3DE;
+            border: none;
+            padding: 18px 50px;
+            font-size: 20px;
+            font-family: 'Anton', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto 10px;
+            border-radius: 4px;
+            box-shadow: 0 5px 0 #000, 0 10px 20px rgba(0,0,0,0.3);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:hover {
+            transform: translateY(2px);
+            box-shadow: 0 3px 0 #000, 0 5px 10px rgba(0,0,0,0.3);
+        }
+        
+        button:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #000;
+        }
+        
+        button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        button:hover::after {
+            left: 100%;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px;
+            background-color: #1A1A1A;
+            border-top: 2px solid #7A6E5F;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .footer-text {
+            color: #7A6E5F;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .footer-subtext {
+            color: #473B31;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        
+        .tag {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            font-family: 'Permanent Marker', cursive;
+            color: #7A6E5F;
+            font-size: 14px;
+            transform: rotate(-5deg);
+            opacity: 0.7;
+        }
+        
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 48px;
+            }
+            
+            h2 {
+                font-size: 28px;
+            }
+            
+            .info-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .info-item {
+                width: 80%;
+            }
+            
+            #countdown {
+                gap: 10px;
+            }
+            
+            .countdown-unit {
+                min-width: 60px;
+                padding: 10px 5px;
+            }
+            
+            .countdown-value {
+                font-size: 18px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <main class="app" role="main" aria-label="ABSA Prize Wheel">
-    <div class="absa-header" role="banner">
-      <div class="absa-logo" aria-label="ABSA Bank">ABSA<span>•</span>BANK</div>
+    <!-- Main container -->
+    <div class="container">
+        <div class="graffiti-bg"></div>
+        
+        <!-- Header section -->
+        <header>
+            <h1>Amandla</h1>
+            <h2>LISTENING SESSION</h2>
+            
+            <div class="info-container">
+                <div class="info-item">
+                    <div class="info-title">LOLI</div>
+                    <div class="info-subtitle">NATIVE</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-title">18SEP2025</div>
+                    <div class="info-subtitle">AT 16:00</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-title">ROSEBANK</div>
+                    <div class="info-subtitle">JOHANNESBURG</div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Countdown section -->
+        <div class="countdown-section">
+            <h3 class="countdown-title">COUNTDOWN TO EVENT</h3>
+            <div id="countdown">
+                <div class="countdown-unit">
+                    <div id="days" class="countdown-value">00</div>
+                    <div class="countdown-label">DAYS</div>
+                </div>
+                <div class="countdown-unit">
+                    <div id="hours" class="countdown-value">00</div>
+                    <div class="countdown-label">HOURS</div>
+                </div>
+                <div class="countdown-unit">
+                    <div id="minutes" class="countdown-value">00</div>
+                    <div class="countdown-label">MINUTES</div>
+                </div>
+                <div class="countdown-unit">
+                    <div id="seconds" class="countdown-value">00</div>
+                    <div class="countdown-label">SECONDS</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Form section -->
+        <div class="form-section">
+            <form>
+                <div class="form-group">
+                    <label for="name">FULL NAME</label>
+                    <input type="text" id="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">EMAIL ADDRESS</label>
+                    <input type="email" id="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">PHONE NUMBER</label>
+                    <input type="tel" id="phone" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="guests">NUMBER OF GUESTS</label>
+                    <select id="guests">
+                        <option value="1">1 (SOLO)</option>
+                        <option value="2">2 (CREW)</option>
+                        <option value="3">3 (SQUAD)</option>
+                        <option value="4">4 (GANG)</option>
+                        <option value="5">5 (MOB)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="message">SHOUT OUT / QUESTIONS</label>
+                    <textarea id="message"></textarea>
+                </div>
+                
+                <button type="submit">SECURE MY SPOT</button>
+            </form>
+        </div>
+        
+        <!-- Footer -->
+        <footer>
+            <p class="footer-text">&copy; 2025 AMANDLA MUSIC. ALL RIGHTS RESERVED.</p>
+            <p class="footer-subtext">LIMITED SPOTS AVAILABLE. RSVP DOES NOT GUARANTEE ENTRY.</p>
+            <div class="tag">TAGGED BY LOLI</div>
+        </footer>
     </div>
-    
-    <header>
-      <h1>ABSA Prize Wheel</h1>
-      <p class="sub">Spin to win exciting rewards. Five prizes with "Oops" messages in between. Daily limits apply.</p>
-    </header>
 
-    <section class="stage" aria-live="polite">
-      <div class="pointer" aria-hidden="true"></div>
-
-      <!-- Confetti layer -->
-      <canvas id="confetti"></canvas>
-
-      <!-- SVG Wheel -->
-      <div class="wheel-wrap" aria-hidden="false">
-        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 10 segments">
-          <defs>
-            <!-- rim -->
-            <radialGradient id="rim" cx="50%" cy="50%" r="60%">
-              <stop offset="0%" stop-color="#ffffff"/>
-              <stop offset="60%" stop-color="#f3f3f3"/>
-              <stop offset="100%" stop-color="#e9e9e9"/>
-            </radialGradient>
-            <!-- red -->
-            <linearGradient id="absa-red-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#E41E2D"/>
-              <stop offset="100%" stop-color="#c11a26"/>
-            </linearGradient>
-            <!-- gloss -->
-            <radialGradient id="gloss" cx="30%" cy="30%" r="70%">
-              <stop offset="0%" stop-color="white" stop-opacity="0.22"/>
-              <stop offset="100%" stop-color="white" stop-opacity="0"/>
-            </radialGradient>
-          </defs>
-
-          <!-- outer rim -->
-          <circle r="49" fill="url(#rim)" stroke="rgba(0,0,0,.08)" stroke-width="1"></circle>
-
-          <g id="segments"></g>
-
-          <!-- hub -->
-          <circle r="10.8" fill="#0f0f10" stroke="#4a4a4a" stroke-width="1.1"></circle>
-          <circle r="7.2" fill="url(#absa-red-grad)" stroke="#fff" stroke-width=".8"></circle>
-          <text y="2" text-anchor="middle" fill="white" font-size="3.2" font-weight="800" aria-hidden="true">ABSA</text>
-
-          <!-- gloss -->
-          <circle r="49" fill="url(#gloss)" stroke="none" pointer-events="none"></circle>
-        </svg>
-      </div>
-    </section>
-
-    <section class="controls" aria-label="Controls">
-      <button id="spinBtn" type="button" aria-controls="wheel" aria-label="Start spin (or press Space)">🎯 Spin Wheel</button>
-      <button id="resetBtn" type="button" aria-label="Reset wheel">↺ Reset Wheel</button>
-      <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
-    </section>
-
-    <div class="prize-counter">
-      <h3>Daily Prize Limits</h3>
-      <div class="prize-grid">
-        <div class="prize-item">
-          <span class="prize-name">Pens:</span>
-          <span class="prize-count"><span id="pen-count">0</span>/50</span>
-        </div>
-        <div class="prize-item">
-          <span class="prize-name">Cooler Bags:</span>
-          <span class="prize-count"><span id="cooler-count">0</span>/10</span>
-        </div>
-        <div class="prize-item">
-          <span class="prize-name">Notebooks:</span>
-          <span class="prize-count"><span id="notebook-count">0</span>/20</span>
-        </div>
-        <div class="prize-item">
-          <span class="prize-name">Bucket Hats:</span>
-          <span class="prize-count"><span id="hat-count">0</span>/10</span>
-        </div>
-        <div class="prize-item">
-          <span class="prize-name">Tumblers:</span>
-          <span class="prize-count"><span id="tumbler-count">0</span>/5</span>
-        </div>
-      </div>
-    </div>
-
-    <div id="toast" class="toast" role="status" aria-live="assertive"></div>
-  </main>
-
-<script>
-/* ======= CONFIG ======= */
-const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Cash Voucher"];
-const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time"];
-
-// Daily limits for prizes
-const DAILY_LIMITS = {
-  "Pen": 50,
-  "Cooler Bag": 10,
-  "Notebook": 20,
-  "Bucket Hat": 10,
-  "Tumbler": 5,
-  "Cash Voucher": 6
-};
-
-const WHEEL = document.getElementById('wheel');
-const SEG_GROUP = document.getElementById('segments');
-const STATUS = document.getElementById('status');
-const BTN_SPIN = document.getElementById('spinBtn');
-const BTN_RESET = document.getElementById('resetBtn');
-const TOAST = document.getElementById('toast');
-const CONFETTI = document.getElementById('confetti');
-
-// Prize counter elements
-const PEN_COUNT = document.getElementById('pen-count');
-const COOLER_COUNT = document.getElementById('cooler-count');
-const NOTEBOOK_COUNT = document.getElementById('notebook-count');
-const HAT_COUNT = document.getElementById('hat-count');
-const TUMBLER_COUNT = document.getElementById('tumbler-count');
-const CASH_COUNT = document.getElementById('cash voucher');
-
-// 10 segments (36 degrees each)
-const SEG_COUNT = 10;
-const SEG_SIZE = 360 / SEG_COUNT;
-const CENTER_OFFSET = SEG_SIZE/2;
-const FULL = 360;
-const R = 46;
-const TXT_R = 30;
-
-let spinning = false;
-let currentRotation = 0;
-
-// Track daily wins
-let dailyWins = {
-  "Pen": 0,
-  "Cooler Bag": 0,
-  "Notebook": 0,
-  "Bucket Hat": 0,
-  "Tumbler": 0,
-  "Cash Voucher": 0,
-  total: 0
-};
-
-// Build segments list with alternating prizes and lose messages
-const segments = [
-  { label: PRIZES[0], type: 'win' },        // Pen
-  { label: LOSE_MESSAGES[0], type: 'lose' }, // Oops!
-  { label: PRIZES[1], type: 'win' },        // Cooler Bag
-  { label: LOSE_MESSAGES[1], type: 'lose' }, // Better luck!
-  { label: PRIZES[2], type: 'win' },        // Notebook
-  { label: LOSE_MESSAGES[2], type: 'lose' }, // Almost!
-  { label: PRIZES[3], type: 'win' },        // Bucket Hat
-  { label: LOSE_MESSAGES[3], type: 'lose' }, // Next time!
-  { label: PRIZES[4], type: 'win' },        // Tumbler
-  { label: LOSE_MESSAGES[4], type: 'lose' }  // Not this time! (was Try again!)
-];
-
-// Load saved daily wins from localStorage
-function loadDailyWins() {
-  const today = new Date().toDateString();
-  const savedData = localStorage.getItem('absaWheelDailyWins');
-  
-  if (savedData) {
-    const parsedData = JSON.parse(savedData);
-    if (parsedData.date === today) {
-      dailyWins = parsedData.wins;
-      updatePrizeCounters();
-      updateStatusWithLimits();
-      return;
-    }
-  }
-  
-  resetDailyWins();
-}
-
-// Save daily wins to localStorage
-function saveDailyWins() {
-  const today = new Date().toDateString();
-  const dataToSave = {
-    date: today,
-    wins: dailyWins
-  };
-  localStorage.setItem('absaWheelDailyWins', JSON.stringify(dataToSave));
-}
-
-// Reset daily wins
-function resetDailyWins() {
-  dailyWins = {
-    "Notebook": 0,
-    "Cooler Bag": 0,
-    "Pen": 0,
-    "Bucket Hat": 0,
-    "Tumbler": 0,
-    "Cash Voucher": 0,
-    total: 0
-  };
-  saveDailyWins();
-  updatePrizeCounters();
-  updateStatusWithLimits();
-}
-
-// Update prize counters display
-function updatePrizeCounters() {
-  NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
-  COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
-  PEN_COUNT.textContent = dailyWins["Pen"];
-  HAT_COUNT.textContent = dailyWins["Bucket Hat"];
-  TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
-  VOUCHER_COUNT.textContent = dailyWins["Cash Voucher"];
-}
-
-// Update status with daily limits info
-function updateStatusWithLimits() {
-  const remainingText = `Today: ${dailyWins.total}/95 prizes won`;
-  STATUS.innerHTML = `Ready. ${remainingText} Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.`;
-}
-
-// Check if a prize is still available
-function isPrizeAvailable(prize) {
-  return dailyWins[prize] < DAILY_LIMITS[prize];
-}
-
-// Check if any prize is still available
-function arePrizesAvailable() {
-  return Object.values(DAILY_LIMITS).some((limit, index) => 
-    dailyWins[Object.keys(DAILY_LIMITS)[index]] < limit
-  );
-}
-
-/* ABSA Color palette */
-const FILL_A = '#ffffff';
-const FILL_B = '#f7f7f7';
-const TEXT_WIN = '#E41E2D';
-const TEXT_LOSE = '#666666';
-
-/* ======= SVG helpers ======= */
-function polarToXY(deg, radius){
-  const rad = (deg - 90) * Math.PI / 180;
-  return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
-}
-
-function describeSlice(startDeg, endDeg, radius){
-  const start = polarToXY(startDeg, radius);
-  const end   = polarToXY(endDeg, radius);
-  const large = endDeg - startDeg <= 180 ? 0 : 1;
-  return `M 0 0 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
-}
-
-function addTextAt(angleDeg, text, color){
-  const anchor = polarToXY(angleDeg, TXT_R);
-  const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)})`);
-  const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
-  const t  = document.createElementNS('http://www.w3.org/2000/svg','text');
-
-  t.textContent = text;
-  t.setAttribute('fill', color);
-  t.setAttribute('font-size', '2.8'); // Reduced from 3.2
-  t.setAttribute('font-weight', '700'); // Reduced from 800
-  t.setAttribute('text-anchor','middle');
-  t.setAttribute('dominant-baseline','central');
-
-  // chip bg for legibility
-  const padX = Math.max(10, text.length * 1.8);
-  const padY = 6;
-  bg.setAttribute('x', (-padX/2).toString());
-  bg.setAttribute('y', (-padY/2).toString());
-  bg.setAttribute('width', padX.toString());
-  bg.setAttribute('height', padY.toString());
-  bg.setAttribute('class','label-chip');
-
-  g.appendChild(bg);
-  g.appendChild(t);
-  SEG_GROUP.appendChild(g);
-}
-
-function buildWheel(){
-  SEG_GROUP.innerHTML = '';
-
-  for (let i=0; i<SEG_COUNT; i++){
-    const start = i * SEG_SIZE;
-    const end   = (i+1) * SEG_SIZE;
-    const center= start + CENTER_OFFSET;
-    const seg   = segments[i];
-
-    // slice
-    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d', describeSlice(start, end, R));
-    if (seg.type === 'win') {
-      path.setAttribute('fill', 'url(#absa-red-grad)');
-    } else {
-      path.setAttribute('fill', (i % 2 === 0) ? FILL_A : FILL_B);
-    }
-    path.setAttribute('stroke', 'rgba(0,0,0,.08)');
-    path.setAttribute('stroke-width', '.6');
-    SEG_GROUP.appendChild(path);
-
-    // text
-    let color = TEXT_LOSE;
-    if (seg.type === 'win')  color = TEXT_WIN;
-    addTextAt(center, seg.label, color);
-  }
-}
-buildWheel();
-
-/* ======= Spin Logic ======= */
-function pickIndexFair(){
-  if (!arePrizesAvailable()) {
-    const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
-    return loseIndices[Math.floor(Math.random() * loseIndices.length)];
-  }
-  
-  let selectedIndex = Math.floor(Math.random() * segments.length);
-  const selectedSegment = segments[selectedIndex];
-  
-  if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
-    const availablePrizes = segments.filter(seg => 
-      seg.type === 'win' && isPrizeAvailable(seg.label)
-    );
-    
-    if (availablePrizes.length > 0) {
-      const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
-      selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
-    } else {
-      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
-      selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
-    }
-  }
-  
-  return selectedIndex;
-}
-
-function celebrate(){
-  const ctx = CONFETTI.getContext('2d');
-  const rect = document.querySelector('.stage').getBoundingClientRect();
-  const width = rect.width, height = rect.height;
-
-  const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-  CONFETTI.width = width * dpr;
-  CONFETTI.height = height * dpr;
-  ctx.scale(dpr, dpr);
-
-  const pieces = Array.from({length: 120}, () => ({
-    x: Math.random()*width,
-    y: -10 + Math.random()*10,
-    w: 3 + Math.random()*4,
-    h: 6 + Math.random()*6,
-    v: 2 + Math.random()*3,
-    a: Math.random()*FULL,
-    s: 2 + Math.random()*3
-  }));
-
-  let frames = 0;
-  function step(){
-    ctx.clearRect(0,0,width,height);
-    pieces.forEach(p=>{
-      p.y += p.v;
-      p.a += p.s;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.a*Math.PI/180);
-      ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
-      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
-      ctx.restore();
-    });
-    frames++;
-    if (frames < 100) requestAnimationFrame(step);
-    else ctx.clearRect(0,0,width,height);
-  }
-  step();
-}
-
-function showToast(html, nice=false){
-  TOAST.innerHTML = html;
-  TOAST.classList.toggle('win', !!nice);
-  TOAST.classList.add('show');
-  setTimeout(()=> TOAST.classList.remove('show'), 2600);
-}
-
-function spin(){
-  if (spinning) return;
-  spinning = true;
-  document.body.classList.add('spinning');
-  BTN_SPIN.disabled = true;
-  BTN_RESET.disabled = true;
-  STATUS.innerHTML = 'Spinning…';
-
-  const idx = pickIndexFair();
-  const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
-
-  const fullTurns = 8 + Math.floor(Math.random()*4);
-  const jitter = (Math.random()*6) - 3;
-
-  const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
-
-  const node = WHEEL;
-  node.style.transition = `transform var(--spin-ms) var(--bezier)`;
-  node.style.transform = `rotate(${finalRotation}deg)`;
-  currentRotation = finalRotation;
-
-  const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
-  const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
-
-  setTimeout(()=>{
-    const result = segments[idx];
-    let msg;
-    
-    if (result.type === 'win' && isPrizeAvailable(result.label)){
-      dailyWins[result.label]++;
-      dailyWins.total++;
-      saveDailyWins();
-      updatePrizeCounters();
-      
-      msg = `🎉 You won a <strong>${result.label}</strong>!`;
-      showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
-      celebrate();
-    } else {
-      msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
-      showToast('Try again — your next spin could be a winner!', false);
-    }
-    
-    STATUS.innerHTML = `${msg} Today: ${dailyWins.total}/95 prizes won.`;
-    spinning = false;
-    document.body.classList.remove('spinning');
-    BTN_SPIN.disabled = false;
-    BTN_RESET.disabled = false;
-  }, dur + 60);
-}
-
-function resetWheel(){
-  if (spinning) return;
-  WHEEL.style.transition = 'transform 380ms ease';
-  WHEEL.style.transform = 'rotate(0deg)';
-  currentRotation = 0;
-  updateStatusWithLimits();
-}
-
-/* ======= Events & A11y ======= */
-BTN_SPIN.addEventListener('click', spin);
-BTN_RESET.addEventListener('click', resetWheel);
-
-document.addEventListener('keydown', (e)=>{
-  if (e.code === 'Space' || e.key === 'Enter'){
-    e.preventDefault();
-    spin();
-  } else if ((e.key === 'r' || e.key === 'R') && !spinning){
-    resetWheel();
-  }
-});
-
-/* Make confetti canvas match stage */
-function sizeConfetti(){
-  const rect = document.querySelector('.stage').getBoundingClientRect();
-  CONFETTI.width = rect.width;
-  CONFETTI.height = rect.height;
-}
-
-// Initialize
-window.addEventListener('resize', sizeConfetti, { passive:true });
-sizeConfetti();
-loadDailyWins();
-</script>
+    <script>
+        // Countdown timer
+        function updateCountdown() {
+            const eventDate = new Date('September 18, 2025 16:00:00').getTime();
+            const now = new Date().getTime();
+            const distance = eventDate - now;
+            
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+            
+            document.getElementById("days").innerText = days.toString().padStart(2, '0');
+            document.getElementById("hours").innerText = hours.toString().padStart(2, '0');
+            document.getElementById("minutes").innerText = minutes.toString().padStart(2, '0');
+            document.getElementById("seconds").innerText = seconds.toString().padStart(2, '0');
+            
+            if (distance < 0) {
+                clearInterval(countdownTimer);
+                document.getElementById("countdown").innerHTML = "<div style='font-size: 24px; font-weight: 700; color: #E6E3DE; text-shadow: 2px 2px 0 #7A6E5F;'>EVENT IN PROGRESS</div>";
+            }
+        }
+        
+        // Initial call
+        updateCountdown();
+        
+        // Update every second
+        const countdownTimer = setInterval(updateCountdown, 1000);
+        
+        // Form submission handling
+        document.querySelector('form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('RESPECT! YOUR SPOT IS SECURED. SEE YOU IN THE SESSION.');
+            this.reset();
+        });
+    </script>
 </body>
 </html>

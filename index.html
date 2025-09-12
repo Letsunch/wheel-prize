@@ -293,6 +293,27 @@
     box-shadow: 0 8px 16px rgba(0,0,0,.25) !important;
   }
   .show-modal{ display:flex; }
+  
+  /* Consent checkbox */
+  .consent-checkbox {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    align-items: flex-start;
+  }
+  .consent-checkbox input[type="checkbox"] {
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+  .consent-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .consent-text a {
+    color: var(--absa-red);
+    text-decoration: underline;
+  }
 </style>
 </head>
 <body>
@@ -396,6 +417,18 @@
           <label for="playerPhone">Phone Number</label>
           <input id="playerPhone" name="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" required />
         </div>
+        
+        <!-- Consent Checkbox -->
+        <div class="consent-checkbox">
+          <input type="checkbox" id="consentCheckbox" name="consent" required />
+          <label for="consentCheckbox" class="consent-text">
+            I consent to ABSA collecting and processing my personal information for the purpose of this promotion. 
+            I understand that my data will be stored and used in accordance with ABSA's 
+            <a href="#" return false;">Privacy Policy</a> 
+            and will not be shared with third parties without my explicit consent.
+          </label>
+        </div>
+        
         <div class="modal-actions">
           <button type="button" id="cancelPlayer" class="btn-secondary">Cancel</button>
           <button type="submit" id="savePlayer">Save Player</button>
@@ -459,6 +492,7 @@
   const INPUT_NAME = document.getElementById('playerName');
   const INPUT_SURNAME = document.getElementById('playerSurname');
   const INPUT_PHONE = document.getElementById('playerPhone');
+  const CONSENT_CHECKBOX = document.getElementById('consentCheckbox');
   const BTN_CANCEL_PLAYER = document.getElementById('cancelPlayer');
 
   // Prize counter elements
@@ -908,9 +942,15 @@
     const name = (INPUT_NAME.value || '').trim();
     const surname = (INPUT_SURNAME.value || '').trim();
     const phone = (INPUT_PHONE.value || '').trim();
+    const consent = CONSENT_CHECKBOX.checked;
 
     if (!name || !surname || !phone){
       showToast('Please fill in all fields.', false);
+      return;
+    }
+    
+    if (!consent) {
+      showToast('Please consent to data usage to continue.', false);
       return;
     }
 
