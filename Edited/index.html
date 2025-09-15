@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ABSA Prize Wheel</title>
+<style>
+  :root{
+    /* ABSA Brand */
+    --absa-red: #E41E2D;
+    --absa-red-2:#c11a26;
+    --absa-dark:#000000;
+    --absa-gray:#333333;
+    --absa-light:#F5F5F5;
+    --absa-gold:#000000;
+    --absa-silver:#D9D9D9;
+
+    /* Theme */
+    --bg: #ffffff;
+    --panel:#ffffff;
+    --panel-2:#f3f3f3;
+    --text: var(--absa-dark);
+    --muted:#666;
+    --ring:#e6e6e6;
+
+    /* Wheel */
+    --wheel-size:min(76vmin, 640px);
+    --hub-size: 96px;
+    --pointer-size: 36px;
+
+    /* Motion */
+    --spin-ms: 4300ms;
+    --bezier: cubic-bezier(.15,.9,.1,1);
+
+    /* Depth */
+    --shadow-1: 0 6px 14px rgba(0,0,0,.12);
+    --shadow-2: 0 14px 30px rgba(0,0,0,.16);
+    --focus: 0 0 0 3px rgba(228,30,45,.15), 0 0 0 6px rgba(228,30,45,.12);
+  }
+
+  *{ box-sizing:border-box }
+  html,body{ height:100% }
+  body{
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    color:var(--text);
+    background: var(--bg);
+    background-size: 120px;
+    background-position: center;
+    background-attachment: fixed;
+    display:grid;
+    place-items:center;
+    padding:22px;
+    position: relative;
+  }
+
+  /* Add overlay to ensure content remains readable */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    opacity: 0.92;
+    z-index: -1;
+  }
+
+  .app{
+    width:min(100%, 1080px);
+    display:grid;
+    gap:24px;
+    justify-items:center;
+    text-align:center;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header bar */
+  .absa-header{
+    width:100%;
+    background: linear-gradient(180deg,#0f0f10, #000);
+    color:#fff;
+    padding:14px 18px;
+    border-radius:16px;
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    box-shadow: var(--shadow-1);
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .absa-logo{
+    font-weight:900;
+    font-size:24px;
+    letter-spacing:.6px;
+  }
+  .absa-logo span{ color:var(--absa-red) }
+
+  header h1{
+    margin:0 0 6px 0;
+    font-size:clamp(26px,3.8vmin,38px);
+    font-weight:900;
+    letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .sub{
+    margin:0;
+    color:var(--muted);
+    font-size:clamp(14px,2vmin,17px);
+    max-width: 680px;
+    line-height:1.55;
+  }
+
+  /* Stage */
+  .stage{
+    position:relative;
+    width:var(--wheel-size);
+    aspect-ratio:1/1;
+    display:grid; place-items:center;
+  }
+
+  /* Wheel wrapper with drop shadow + subtle base */
+  .wheel-wrap{
+    position:absolute; inset:0;
+    display:grid; place-items:center;
+    filter: drop-shadow(0 14px 28px rgba(0,0,0,.18));
+  }
+
+  /* Pointer */
+  .pointer{
+    position:absolute; top:-2px; left:50%;
+    transform: translateX(-50%) rotate(180deg);
+    width:0; height:0;
+    border-left: var(--pointer-size) solid transparent;
+    border-right: var(--pointer-size) solid transparent;
+    border-bottom: calc(var(--pointer-size) * 1.62) solid var(--absa-gold);
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.25));
+    z-index:6;
+  }
+  .pointer::before{
+    content:"";
+    position:absolute; left:calc(-.5 * var(--pointer-size) + 2px); top:calc(var(--pointer-size) * 1.1);
+    width: calc(var(--pointer-size) - 4px); height: calc(var(--pointer-size) - 4px);
+    border-radius:50%;
+    background: radial-gradient(120% 120% at 30% 30%, #fff 0%, #f7f7f7 40%, #bbb 100%);
+    outline: 2px solid rgba(0,0,0,.25);
+    box-shadow: inset 0 2px 2px rgba(255,255,255,.45), inset 0 -3px 6px rgba(0,0,0,.25);
+  }
+
+  /* stop wobble while spinning so the dot doesn't bob */
+  .spinning .pointer{
+    animation: none;
+  }
+
+  /* Controls */
+  .controls{
+    display:flex; flex-wrap:wrap; gap:14px 16px; justify-content:center; align-items:center;
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    padding:18px 20px;
+    border-radius:16px;
+    box-shadow: var(--shadow-1);
+    border: 1px solid var(--ring);
+    width:min(100%, 820px);
+    backdrop-filter: saturate(1.2);
+  }
+  button{
+    appearance:none; border:0; cursor:pointer;
+    padding:14px 22px; border-radius:12px;
+    font-weight:800; letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    color:white;
+    box-shadow: 0 8px 16px rgba(228,30,45,.25);
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+    min-width: 148px;
+  }
+  button:hover{ 
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(228,30,45,.3);
+    filter: saturate(1.02);
+  }
+  button:active{ transform: translateY(0) scale(.99) }
+  button[disabled]{ opacity:.65; cursor:not-allowed; filter:grayscale(.1) }
+  button:focus-visible{ outline:none; box-shadow: var(--focus) }
+
+  #resetBtn{
+    background: linear-gradient(180deg, #3b3b3b, #202020);
+    box-shadow: 0 8px 16px rgba(0,0,0,.25);
+  }
+  #resetBtn:hover{ filter:brightness(1.02) }
+
+  .readout{ 
+    flex: 1 1 320px; 
+    text-align:center; 
+    color:var(--muted); 
+    font-weight:700;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border-radius: 10px;
+    border:1px solid var(--ring);
+  }
+  .readout strong{ color:var(--absa-red) }
+
+  /* Toast */
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(18px);
+    background: var(--panel);
+    color:var(--text); 
+    border-radius:14px; 
+    padding:16px 20px;
+    box-shadow: var(--shadow-2);
+    border: 1px solid var(--ring);
+    opacity:0; 
+    pointer-events:none; 
+    transition: all .35s var(--bezier);
+    max-width:min(92vw, 620px);
+    font-weight: 800;
+    text-align: center;
+    z-index: 100;
+  }
+  .toast.win{
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    color: white;
+    border-color: rgba(255,255,255,.22);
+    text-shadow: 0 1px 0 rgba(0,0,0,.25);
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+
+  /* Prize counter */
+  .prize-counter {
+    display: none;
+  }
+
+  /* SVG text legibility chip */
+  .label-chip{
+    fill: rgba(255,255,255,.92);
+    stroke: rgba(0,0,0,.10);
+    stroke-width:.3;
+    rx:4; ry:4;
+  }
+
+  /* Focus visible on the main buttons for keyboard users */
+  #spinBtn:focus-visible, #resetBtn:focus-visible, #addPlayerBtn:focus-visible {
+    outline:none; box-shadow: var(--focus);
+  }
+
+  /* Reduced font sizes for wheel text */
+  #wheel text {
+    font-size: 2.4px;
+    font-weight: 700;
+  }
+
+  /* Even smaller font for longer text */
+  .smaller-text {
+    font-size: 2.1px !important;
+  }
+
+  /* Modal */
+  .modal-backdrop{
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    display:none; align-items:center; justify-content:center; z-index: 200;
+  }
+  .modal{
+    width: min(92vw, 560px);
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--ring);
+    box-shadow: var(--shadow-2);
+    border-radius:16px;
+    padding:18px;
+    text-align:left;
+  }
+  .modal h3{
+    margin:0 0 10px 0;
+    font-size: clamp(18px, 2.6vmin, 22px);
+    font-weight:900;
+    letter-spacing:.2px;
+    background: linear-gradient(180deg, var(--absa-red), var(--absa-red-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  .field{
+    display:grid; gap:6px; margin:10px 0;
+  }
+  .field label{
+    font-weight:800; color:var(--absa-dark); font-size:14px;
+  }
+  .field input{
+    padding:12px 12px; border-radius:10px; border:1px solid var(--ring); background:#fff; font-size:14px;
+  }
+  .modal-actions{
+    display:flex; gap:12px; justify-content:flex-end; margin-top:14px;
+  }
+  .btn-secondary{
+    background: linear-gradient(180deg, #3b3b3b, #202020) !important;
+    box-shadow: 0 8px 16px rgba(0,0,0,.25) !important;
+  }
+  .show-modal{ display:flex; }
+  
+  /* Consent checkbox */
+  .consent-checkbox {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    align-items: flex-start;
+  }
+  .consent-checkbox input[type="checkbox"] {
+    margin-top: 3px;
+    flex-shrink: 0;
+  }
+  .consent-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  .consent-text a {
+    color: var(--absa-red);
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+  <main class="app" role="main" aria-label="ABSA Prize Wheel">
+    
+    <header>
+      <h1>ABSA Prize Wheel</h1>
+      <p class="sub">Spin the wheel to win exciting rewards!</p>
+    </header>
+
+    <section class="stage" aria-live="polite">
+      <div class="pointer" aria-hidden="true"></div>
+
+      <!-- Confetti layer -->
+      <canvas id="confetti"></canvas>
+
+      <!-- SVG Wheel -->
+      <div class="wheel-wrap" aria-hidden="false">
+        <svg id="wheel" width="100%" height="100%" viewBox="-50 -50 100 100" role="img" aria-label="Prize wheel with 12 segments">
+          <defs>
+            <radialGradient id="rim" cx="50%" cy="50%" r="60%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="60%" stop-color="#f3f3f3"/>
+              <stop offset="100%" stop-color="#e9e9e9"/>
+            </radialGradient>
+            <linearGradient id="absa-red-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#E41E2D"/>
+              <stop offset="100%" stop-color="#c11a26"/>
+            </linearGradient>
+            <radialGradient id="gloss" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="white" stop-opacity="0.22"/>
+              <stop offset="100%" stop-color="white" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          <circle r="49" fill="url(#rim)" stroke="rgba(0,0,0,.08)" stroke-width="1"></circle>
+
+          <g id="segments"></g>
+
+          <image href="assets/absa_logo.png" x="-10.8" y="-10.8" width="21.6" height="21.6" />
+          
+          <circle r="49" fill="url(#gloss)" stroke="none" pointer-events="none"></circle>
+        </svg>
+      </div>
+    </section>
+
+    <section class="controls" aria-label="Controls">
+      <button id="spinBtn" type="button" aria-controls="wheel" aria-label="Start spin (or press Space)">🎯 Spin Wheel</button>
+      <button id="resetBtn" type="button" aria-label="Reset wheel">↺ Reset Wheel</button>
+      <button id="addPlayerBtn" type="button" aria-label="Add player">➕ Add Player</button>
+      <div id="status" class="readout" role="status">Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.</div>
+    </section>
+
+    <div id="prizeCounter" class="prize-counter">
+      <h3>Daily Prize Limits</h3>
+      <div class="prize-grid">
+        <div class="prize-item">
+          <span class="prize-name">Pens:</span>
+          <span class="prize-count"><span id="pen-count">0</span>/50</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Cooler Bags:</span>
+          <span class="prize-count"><span id="cooler-count">0</span>/10</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Notebooks:</span>
+          <span class="prize-count"><span id="notebook-count">0</span>/20</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Bucket Hats:</span>
+          <span class="prize-count"><span id="hat-count">0</span>/10</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Tumblers:</span>
+          <span class="prize-count"><span id="tumbler-count">0</span>/5</span>
+        </div>
+        <div class="prize-item">
+          <span class="prize-name">Vouchers:</span>
+          <span class="prize-count"><span id="voucher-count">0</span>/3</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="assertive"></div>
+  </main>
+
+  <!-- Player Modal (Surname instead of Email) -->
+  <div id="playerModalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal">
+      <h3 id="modalTitle">Add Player</h3>
+      <form id="playerForm">
+        <div class="field">
+          <label for="playerName">Name</label>
+          <input id="playerName" name="name" type="text" placeholder="Full name" required />
+        </div>
+        <div class="field">
+          <label for="playerSurname">Surname</label>
+          <input id="playerSurname" name="surname" type="text" placeholder="Surname" required />
+        </div>
+        <div class="field">
+          <label for="playerPhone">Phone Number</label>
+          <input id="playerPhone" name="phone" type="tel" inputmode="tel" placeholder="e.g. 082 123 4567" required />
+        </div>
+        
+        <!-- Consent Checkbox -->
+        <div class="consent-checkbox">
+          <input type="checkbox" id="consentCheckbox" name="consent" required />
+          <label for="consentCheckbox" class="consent-text">
+            I consent to ABSA collecting and processing my personal information for the purpose of this promotion. 
+            I understand that my data will be stored and used in accordance with ABSA's 
+            <a href="#" onclick="return false;">Privacy Policy</a> 
+            and will not be shared with third parties without my explicit consent.
+          </label>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" id="cancelPlayer" class="btn-secondary">Cancel</button>
+          <button type="submit" id="savePlayer">Save Player</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script type="module">
+  /* =========================
+     NO FIREBASE — LOCAL ONLY
+     ========================= */
+
+  /* ======= CONFIG ======= */
+  const PRIZES = ["Pen", "Cooler Bag", "Notebook", "Bucket Hat", "Tumbler", "Voucher"];
+  const LOSE_MESSAGES = ["Oops!", "Next time!", "Oops!", "Next time!", "Oops!", "Next time!"];
+
+  // Daily limits for prizes
+  const DAILY_LIMITS = {
+    "Pen": 50,
+    "Cooler Bag": 10,
+    "Notebook": 20,
+    "Bucket Hat": 10,
+    "Tumbler": 5,
+    "Voucher": 3
+  };
+
+  const WHEEL = document.getElementById('wheel');
+  const SEG_GROUP = document.getElementById('segments');
+  const STATUS = document.getElementById('status');
+  const BTN_SPIN = document.getElementById('spinBtn');
+  const BTN_RESET = document.getElementById('resetBtn');
+  const BTN_ADD_PLAYER = document.getElementById('addPlayerBtn');
+  const TOAST = document.getElementById('toast');
+  const CONFETTI = document.getElementById('confetti');
+
+  // Modal elems
+  const MODAL_BACKDROP = document.getElementById('playerModalBackdrop');
+  const FORM_PLAYER = document.getElementById('playerForm');
+  const INPUT_NAME = document.getElementById('playerName');
+  const INPUT_SURNAME = document.getElementById('playerSurname');
+  const INPUT_PHONE = document.getElementById('playerPhone');
+  const CONSENT_CHECKBOX = document.getElementById('consentCheckbox');
+  const BTN_CANCEL_PLAYER = document.getElementById('cancelPlayer');
+
+  // Prize counter elements
+  const PEN_COUNT = document.getElementById('pen-count');
+  const COOLER_COUNT = document.getElementById('cooler-count');
+  const NOTEBOOK_COUNT = document.getElementById('notebook-count');
+  const HAT_COUNT = document.getElementById('hat-count');
+  const TUMBLER_COUNT = document.getElementById('tumbler-count');
+  const VOUCHER_COUNT = document.getElementById('voucher-count');
+
+  // 12 segments (30 degrees each)
+  const SEG_COUNT = 12;
+  const SEG_SIZE = 360 / SEG_COUNT;
+  const CENTER_OFFSET = SEG_SIZE/2;
+  const FULL = 360;
+  const R = 46;
+  const TXT_R = 30;
+
+  let spinning = false;
+  let currentRotation = 0;
+
+  /* ===== Player & Logging ===== */
+  let currentPlayer = null; // {name, surname, phone}
+  let plays = [];           // array of {name, surename, cell, prize, dateKey, createdAt}
+
+  // Storage keys
+  const LS_WINS = 'absaWheelDailyWins';
+  const LS_PLAYS = 'absaWheelPlays';
+
+  // Track daily wins
+  let dailyWins = {
+    "Pen": 0,
+    "Cooler Bag": 0,
+    "Notebook": 0,
+    "Bucket Hat": 0,
+    "Tumbler": 0,
+    "Voucher": 0,
+    total: 0
+  };
+
+  // Build segments list with alternating prizes and lose messages
+  const segments = [
+    { label: PRIZES[0], type: 'win' },
+    { label: LOSE_MESSAGES[0], type: 'lose' },
+    { label: PRIZES[1], type: 'win' },
+    { label: LOSE_MESSAGES[1], type: 'lose' },
+    { label: PRIZES[2], type: 'win' },
+    { label: LOSE_MESSAGES[2], type: 'lose' },
+    { label: PRIZES[3], type: 'win' },
+    { label: LOSE_MESSAGES[3], type: 'lose' },
+    { label: PRIZES[4], type: 'win' },
+    { label: LOSE_MESSAGES[4], type: 'lose' },
+    { label: PRIZES[5], type: 'win' },
+    { label: LOSE_MESSAGES[5], type: 'lose' }
+  ];
+
+  /* ===== Local Storage Helpers ===== */
+  function loadPlays(){
+    try {
+      const raw = localStorage.getItem(LS_PLAYS);
+      plays = raw ? JSON.parse(raw) : [];
+    } catch(e){
+      plays = [];
+    }
+  }
+  function savePlays(){
+    localStorage.setItem(LS_PLAYS, JSON.stringify(plays));
+  }
+
+  // Load saved daily wins from localStorage
+  function loadDailyWins() {
+    const today = new Date().toDateString();
+    const savedData = localStorage.getItem(LS_WINS);
+    
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      if (parsedData.date === today) {
+        dailyWins = parsedData.wins;
+        updatePrizeCounters();
+        return;
+      }
+    }
+    resetDailyWins();
+  }
+
+  // Save daily wins to localStorage
+  function saveDailyWins() {
+    const today = new Date().toDateString();
+    const dataToSave = {
+      date: today,
+      wins: dailyWins
+    };
+    localStorage.setItem(LS_WINS, JSON.stringify(dataToSave));
+  }
+
+  // Reset daily wins (local only)
+  function resetDailyWins() {
+    dailyWins = {
+      "Pen": 0,
+      "Cooler Bag": 0,
+      "Notebook": 0,
+      "Bucket Hat": 0,
+      "Tumbler": 0,
+      "Voucher": 0,
+      total: 0
+    };
+    saveDailyWins();
+    updatePrizeCounters();
+  }
+
+  // Update prize counters display
+  function updatePrizeCounters() {
+    PEN_COUNT.textContent = dailyWins["Pen"];
+    COOLER_COUNT.textContent = dailyWins["Cooler Bag"];
+    NOTEBOOK_COUNT.textContent = dailyWins["Notebook"];
+    HAT_COUNT.textContent = dailyWins["Bucket Hat"];
+    TUMBLER_COUNT.textContent = dailyWins["Tumbler"];
+    VOUCHER_COUNT.textContent = dailyWins["Voucher"];
+  }
+
+  // Check if a prize is still available
+  function isPrizeAvailable(prize) {
+    return dailyWins[prize] < DAILY_LIMITS[prize];
+  }
+
+  // Check if any prize is still available
+  function arePrizesAvailable() {
+    return Object.values(DAILY_LIMITS).some((limit, index) => 
+      dailyWins[Object.keys(DAILY_LIMITS)[index]] < limit
+    );
+  }
+
+  /* ABSA Color palette */
+  const FILL_A = '#ffffff';
+  const FILL_B = '#f7f7f7';
+  const TEXT_WIN = '#E41E2D';
+  const TEXT_LOSE = '#666666';
+
+  /* ======= SVG helpers ======= */
+  function polarToXY(deg, radius){
+    const rad = (deg - 90) * Math.PI / 180;
+    return { x: radius * Math.cos(rad), y: radius * Math.sin(rad) };
+  }
+
+  function describeSlice(startDeg, endDeg, radius){
+    const start = polarToXY(startDeg, radius);
+    const end   = polarToXY(endDeg, radius);
+    const large = endDeg - startDeg <= 180 ? 0 : 1;
+    return `M 0 0 L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${large} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
+  }
+
+  function addTextAt(angleDeg, text, color){
+    const anchor = polarToXY(angleDeg, TXT_R);
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('transform', `translate(${anchor.x.toFixed(2)}, ${anchor.y.toFixed(2)})`);
+    const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    const t  = document.createElementNS('http://www.w3.org/2000/svg','text');
+
+    t.textContent = text;
+    t.setAttribute('fill', color);
+    t.setAttribute('font-size', '2.4');
+    t.setAttribute('font-weight', '700');
+    t.setAttribute('text-anchor','middle');
+    t.setAttribute('dominant-baseline','central');
+    
+    if (text.length > 8) {
+      t.setAttribute('class', 'smaller-text');
+    }
+
+    t.setAttribute('transform', `rotate(${angleDeg + 90})`);
+
+    const padX = Math.max(10, text.length * 1.6);
+    const padY = 5;
+    bg.setAttribute('x', (-padX/2).toString());
+    bg.setAttribute('y', (-padY/2).toString());
+    bg.setAttribute('width', padX.toString());
+    bg.setAttribute('height', padY.toString());
+    bg.setAttribute('class','label-chip');
+    bg.setAttribute('transform', `rotate(${angleDeg + 90})`);
+
+    g.appendChild(bg);
+    g.appendChild(t);
+    SEG_GROUP.appendChild(g);
+  }
+
+  function buildWheel(){
+    SEG_GROUP.innerHTML = '';
+
+    for (let i=0; i<SEG_COUNT; i++){
+      const start = i * SEG_SIZE;
+      const end   = (i+1) * SEG_SIZE;
+      const center= start + CENTER_OFFSET;
+      const seg   = segments[i];
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', describeSlice(start, end, R));
+      path.setAttribute('fill', seg.type === 'win' ? 'url(#absa-red-grad)' : (i % 2 === 0 ? FILL_A : FILL_B));
+      path.setAttribute('stroke', 'rgba(0,0,0,.08)');
+      path.setAttribute('stroke-width', '.6');
+      SEG_GROUP.appendChild(path);
+
+      addTextAt(center, seg.label, seg.type === 'win' ? TEXT_WIN : TEXT_LOSE);
+    }
+  }
+  buildWheel();
+
+  /* ======= Date helper ======= */
+  function todayKey(dateObj = new Date()){
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth()+1).padStart(2,'0');
+    const d = String(dateObj.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+
+  /* ======= Spin Logic ======= */
+  function pickIndexFair(){
+    if (!arePrizesAvailable()) {
+      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+      return loseIndices[Math.floor(Math.random() * loseIndices.length)];
+    }
+    
+    let selectedIndex = Math.floor(Math.random() * segments.length);
+    const selectedSegment = segments[selectedIndex];
+    
+    if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
+      const availablePrizes = segments.filter(seg => 
+        seg.type === 'win' && isPrizeAvailable(seg.label)
+      );
+      
+      if (availablePrizes.length > 0) {
+        const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+        selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
+      } else {
+        const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+        selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+      }
+    }
+    
+    return selectedIndex;
+  }
+
+  function celebrate(){
+    const ctx = CONFETTI.getContext('2d');
+    const rect = document.querySelector('.stage').getBoundingClientRect();
+    const width = rect.width, height = rect.height;
+
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    CONFETTI.width = width * dpr;
+    CONFETTI.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const pieces = Array.from({length: 120}, () => ({
+      x: Math.random()*width,
+      y: -10 + Math.random()*10,
+      w: 3 + Math.random()*4,
+      h: 6 + Math.random()*6,
+      v: 2 + Math.random()*3,
+      a: Math.random()*FULL,
+      s: 2 + Math.random()*3
+    }));
+
+    let frames = 0;
+    function step(){
+      ctx.clearRect(0,0,width,height);
+      pieces.forEach(p=>{
+        p.y += p.v;
+        p.a += p.s;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.a*Math.PI/180);
+        ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      });
+      frames++;
+      if (frames < 100) requestAnimationFrame(step);
+      else ctx.clearRect(0,0,width,height);
+    }
+    step();
+  }
+
+  function showToast(html, nice=false){
+    TOAST.innerHTML = html;
+    TOAST.classList.toggle('win', !!nice);
+    TOAST.classList.add('show');
+    setTimeout(()=> TOAST.classList.remove('show'), 2600);
+  }
+
+  /* Guard — require a player before spinning */
+  function ensurePlayerSelected(){
+    if (!currentPlayer){
+      showToast('Add a player first to spin.', false);
+      BTN_ADD_PLAYER.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function spin(){
+    if (spinning) return;
+    if (!ensurePlayerSelected()) return;
+
+    spinning = true;
+    document.body.classList.add('spinning');
+    BTN_SPIN.disabled = true;
+    BTN_RESET.disabled = true;
+    BTN_ADD_PLAYER.disabled = true;
+    STATUS.innerHTML = 'Spinning…';
+
+    const idx = pickIndexFair();
+    const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
+
+    const fullTurns = 8 + Math.floor(Math.random()*4);
+    const jitter = (Math.random()*6) - 3;
+
+    const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
+
+    const node = WHEEL;
+    node.style.transition = `transform var(--spin-ms) var(--bezier)`;
+    node.style.transform = `rotate(${finalRotation}deg)`;
+    currentRotation = finalRotation;
+
+    const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
+    const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
+
+    setTimeout(()=>{
+      const result = segments[idx];
+      let msg;
+      let prizeText = "Nothing won";
+      
+      if (result.type === 'win' && isPrizeAvailable(result.label)){
+        dailyWins[result.label]++;
+        dailyWins.total++;
+        saveDailyWins();
+        updatePrizeCounters();
+        
+        prizeText = result.label;
+        msg = `🎉 You won a <strong>${result.label}</strong>!`;
+        showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
+        celebrate();
+      } else {
+        msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
+        showToast('Try again — your next spin could be a winner!', false);
+      }
+
+      // Local-only record (kept for history/debug)
+      const dateKeyVal = todayKey(new Date());
+      const record = {
+        name: currentPlayer.name,
+        surename: currentPlayer.surname,   // keeping exact original key naming
+        cell: currentPlayer.phone,
+        prize: prizeText,
+        dateKey: dateKeyVal,
+        createdAt: new Date().toISOString()
+      };
+      plays.push(record);
+      savePlays();
+
+      STATUS.innerHTML = `${msg}`;
+      spinning = false;
+      document.body.classList.remove('spinning');
+      BTN_SPIN.disabled = false;
+      BTN_RESET.disabled = false;
+      BTN_ADD_PLAYER.disabled = false;
+    }, dur + 60);
+  }
+
+  function resetWheel(){
+    if (spinning) return;
+    WHEEL.style.transition = 'transform 380ms ease';
+    WHEEL.style.transform = 'rotate(0deg)';
+    currentRotation = 0;
+    STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
+  }
+
+  /* ======= Modal Controls ======= */
+  function openPlayerModal(){
+    FORM_PLAYER.reset();
+    MODAL_BACKDROP.classList.add('show-modal');
+    setTimeout(()=> INPUT_NAME.focus(), 0);
+  }
+  function closePlayerModal(){
+    MODAL_BACKDROP.classList.remove('show-modal');
+  }
+  BTN_ADD_PLAYER.addEventListener('click', openPlayerModal);
+  BTN_CANCEL_PLAYER.addEventListener('click', closePlayerModal);
+  MODAL_BACKDROP.addEventListener('click', (e)=>{
+    if (e.target === MODAL_BACKDROP) closePlayerModal();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Escape' && MODAL_BACKDROP.classList.contains('show-modal')) closePlayerModal();
+  });
+
+  FORM_PLAYER.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = (INPUT_NAME.value || '').trim();
+    const surname = (INPUT_SURNAME.value || '').trim();
+    const phone = (INPUT_PHONE.value || '').trim();
+    const consent = CONSENT_CHECKBOX.checked;
+
+    if (!name || !surname || !phone){
+      showToast('Please fill in all fields.', false);
+      return;
+    }
+    
+    if (!consent) {
+      showToast('Please consent to data usage to continue.', false);
+      return;
+    }
+
+    currentPlayer = { name, surname, phone };
+    STATUS.innerHTML = `Player: <strong>${name} ${surname}</strong> ready to spin.`;
+    showToast(`Player <strong>${name} ${surname}</strong> added.`, true);
+    closePlayerModal();
+  });
+
+  /* ======= Events & A11y ======= */
+  BTN_SPIN.addEventListener('click', spin);
+  BTN_RESET.addEventListener('click', resetWheel);
+
+  document.addEventListener('keydown', (e)=>{
+    if (e.code === 'Space' || e.key === 'Enter'){
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+      const modalOpen = MODAL_BACKDROP.classList.contains('show-modal');
+      if (!isTyping && !modalOpen){
+        e.preventDefault();
+        spin();
+      }
+    } else if ((e.key === 'r' || e.key === 'R') && !spinning){
+      resetWheel();
+    } else if ((e.key === 'a' || e.key === 'A') && !spinning){
+      openPlayerModal();
+    }
+  });
+
+  /* Make confetti canvas match stage */
+  function sizeConfetti(){
+    const rect = document.querySelector('.stage').getBoundingClientRect();
+    CONFETTI.width = rect.width;
+    CONFETTI.height = rect.height;
+  }
+
+  // Initialize
+  window.addEventListener('resize', sizeConfetti, { passive:true });
+  sizeConfetti();
+  loadDailyWins();
+  loadPlays();
+</script>
+</body>
+</html>
