@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ABSA Prize Wheel — Firestore Viewer & CSV Export</title>
+<style>
+  :root{
+    --absa-red:#E41E2D; --absa-red-2:#c11a26; --absa-dark:#000; --ring:#e6e6e6;
+    --panel:#fff; --panel-2:#f7f7f7; --muted:#666; --focus:0 0 0 3px rgba(228,30,45,.15),0 0 0 6px rgba(228,30,45,.12);
+    --shadow-1:0 6px 14px rgba(0,0,0,.12); --shadow-2:0 14px 30px rgba(0,0,0,.16);
+  }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0;padding:22px;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;color:#000;background:#fff;display:grid;place-items:start center}
+  .app{width:min(1100px,100%);display:grid;gap:18px}
+  header h1{margin:0 0 4px 0;font-size:clamp(22px,3.4vmin,34px);font-weight:900;letter-spacing:.2px;background:linear-gradient(180deg,var(--absa-red),var(--absa-red-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{margin:0;color:var(--muted)}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--ring);border-radius:16px;box-shadow:var(--shadow-1);padding:16px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .left,.right{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  input[type="text"],input[type="date"],select{border:1px solid var(--ring);background:#fff;padding:10px 12px;border-radius:10px;font-size:14px;min-width:160px}
+  .counter{color:var(--muted);font-weight:700}
+  button{appearance:none;border:0;cursor:pointer;padding:12px 18px;border-radius:12px;font-weight:800;letter-spacing:.2px;background:linear-gradient(180deg,var(--absa-red),var(--absa-red-2));color:#fff;box-shadow:0 8px 16px rgba(228,30,45,.25);transition:transform .12s ease,box-shadow .12s ease,filter .12s ease}
+  button:hover{transform:translateY(-1px);box-shadow:0 10px 18px rgba(228,30,45,.3)}
+  button:focus-visible{outline:none;box-shadow:var(--focus)}
+  .btn-secondary{background:linear-gradient(180deg,#3b3b3b,#202020);box-shadow:0 8px 16px rgba(0,0,0,.25)}
+  .btn-ghost{background:#fff;color:#000;border:1px solid var(--ring);box-shadow:none}
+  table{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border:1px solid var(--ring);border-radius:12px;overflow:hidden}
+  thead th{text-align:left;padding:12px;background:#fafafa;border-bottom:1px solid var(--ring);position:sticky;top:0;z-index:1}
+  tbody td{padding:10px 12px;border-bottom:1px solid #eee}
+  tbody tr:hover{background:#fcfcfc}
+  .empty{padding:24px;text-align:center;color:var(--muted);font-weight:700}
+  .footer-note{color:var(--muted);font-size:12px;text-align:center}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;border:1px solid #eee;background:#f8f8f8;font-weight:800;font-size:12px}
+  .row-actions{display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>ABSA Prize Wheel — Firestore Data</h1>
+      <p class="sub">Reads from Firestore collection <strong>plays</strong>. Filter, page, and export to CSV.</p>
+    </header>
+
+    <section class="card toolbar" aria-label="Filters and actions">
+      <div class="left">
+        <input id="search" type="text" placeholder="Search name, phone, prize…" aria-label="Search" />
+        <label class="pill" title="Filter by prize">
+          Prize
+          <select id="prizeFilter" aria-label="Filter by prize">
+            <option value="">All</option>
+            <option>Pen</option>
+            <option>Cooler Bag</option>
+            <option>Notebook</option>
+            <option>Bucket Hat</option>
+            <option>Tumbler</option>
+            <option>Voucher</option>
+            <option>Nothing won</option>
+          </select>
+        </label>
+        <label class="pill" title="Filter by date (from)">
+          From <input id="fromDate" type="date" />
+        </label>
+        <label class="pill" title="Filter by date (to)">
+          To <input id="toDate" type="date" />
+        </label>
+        <button class="btn-secondary" id="clearFilters" type="button">Clear Filters</button>
+      </div>
+      <div class="right">
+        <div class="counter" id="count">0 rows (0 loaded)</div>
+        <div class="row-actions">
+          <button class="btn-ghost" id="loadMore" type="button">Load more</button>
+          <button id="downloadCsv" type="button">⬇️ Download CSV</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Data table">
+      <div style="overflow:auto; max-height:70vh;">
+        <table id="dataTable" role="table" aria-describedby="count">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Surname (surename)</th>
+              <th>Phone</th>
+              <th>Prize</th>
+              <th>Date Key</th>
+              <th>Created At</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="6" class="empty">Connecting to Firestore…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="footer-note">Ordering: newest first (by <code>createdAt</code>). If some rows lack timestamps, they’ll appear last.</p>
+    </section>
+  </div>
+
+  <!-- Firebase SDK v12.x (modular) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
+    import {
+      getFirestore, collection, getDocs, query, orderBy, limit, startAfter
+    } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+    /* ===== Firebase: same config as your wheel ===== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAferEmJwisxEKTgm8enP_2On3Tap1Bzrc",
+      authDomain: "absa-wheel.firebaseapp.com",
+      projectId: "absa-wheel",
+      storageBucket: "absa-wheel.firebasestorage.app",
+      messagingSenderId: "927747421631",
+      appId: "1:927747421631:web:8069829cf9c247b7d69d0a",
+      measurementId: "G-TB5WMNDLVN"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    try { getAnalytics(app); } catch(e) { /* ignore analytics if blocked */ }
+    const db = getFirestore(app);
+
+    /* ===== UI refs ===== */
+    const tbody = document.getElementById('tbody');
+    const countEl = document.getElementById('count');
+    const searchEl = document.getElementById('search');
+    const prizeFilterEl = document.getElementById('prizeFilter');
+    const fromDateEl = document.getElementById('fromDate');
+    const toDateEl = document.getElementById('toDate');
+    const clearBtn = document.getElementById('clearFilters');
+    const downloadBtn = document.getElementById('downloadCsv');
+    const loadMoreBtn = document.getElementById('loadMore');
+
+    /* ===== State ===== */
+    const PAGE_SIZE = 500; // adjust if needed
+    let allRows = [];          // all rows loaded so far (unfiltered)
+    let lastDocSnap = null;    // for pagination (startAfter)
+    let reachedEnd = false;    // no more pages
+
+    /* ===== Helpers ===== */
+    function escapeHtml(s){
+      return String(s ?? '')
+        .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+        .replaceAll('"','&quot;').replaceAll("'",'&#39;');
+    }
+
+    function csvCell(s){
+      const v = s == null ? '' : String(s);
+      return /[",\n]/.test(v) ? `"${v.replaceAll('"','""')}"` : v;
+    }
+
+    function toIso(v){
+      // Firestore Timestamp -> ISO string; passthrough for string; fallback
+      try{
+        if (!v) return '';
+        if (typeof v.toDate === 'function') return v.toDate().toISOString();
+        if (typeof v === 'string') return v;
+        return '';
+      }catch{ return ''; }
+    }
+
+    function render(rows){
+      tbody.innerHTML = '';
+      if (!rows.length){
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">No matching rows.</td></tr>`;
+      } else {
+        const frag = document.createDocumentFragment();
+        rows.forEach(r=>{
+          const tr = document.createElement('tr');
+          const name = r.name ?? '';
+          const surename = r.surename ?? r.surname ?? '';
+          const cell = r.cell ?? r.phone ?? '';
+          const prize = r.prize ?? '';
+          const dateKey = r.dateKey ?? '';
+          const createdAt = toIso(r.createdAt);
+
+          tr.innerHTML = `
+            <td>${escapeHtml(name)}</td>
+            <td>${escapeHtml(surename)}</td>
+            <td>${escapeHtml(cell)}</td>
+            <td>${escapeHtml(prize)}</td>
+            <td>${escapeHtml(dateKey)}</td>
+            <td>${escapeHtml(createdAt)}</td>
+          `;
+          frag.appendChild(tr);
+        });
+        tbody.appendChild(frag);
+      }
+      const loaded = allRows.length;
+      const shown = rows.length;
+      countEl.textContent = `${shown} row${shown!==1?'s':''} (${loaded} loaded${reachedEnd?', end':''})`;
+      loadMoreBtn.disabled = reachedEnd;
+      loadMoreBtn.textContent = reachedEnd ? 'No more rows' : 'Load more';
+    }
+
+    function applyFilters(){
+      const q = (searchEl.value || '').toLowerCase().trim();
+      const prizeFilter = prizeFilterEl.value;
+      const fromVal = fromDateEl.value; // yyyy-mm-dd
+      const toVal = toDateEl.value;
+
+      const filtered = allRows.filter(r=>{
+        const name = (r.name ?? '').toLowerCase();
+        const surename = (r.surename ?? r.surname ?? '').toLowerCase();
+        const cell = (r.cell ?? r.phone ?? '').toLowerCase();
+        const prize = (r.prize ?? '').toLowerCase();
+        const createdIso = toIso(r.createdAt);
+        const rowDate = (r.dateKey ?? (createdIso ? createdIso.slice(0,10) : ''));
+
+        if (q && !`${name} ${surename} ${cell} ${prize}`.includes(q)) return false;
+        if (prizeFilter && (r.prize ?? '') !== prizeFilter) return false;
+        if (fromVal && rowDate && rowDate < fromVal) return false;
+        if (toVal && rowDate && rowDate > toVal) return false;
+        return true;
+      });
+
+      // Sort: newest first by createdAt ISO (empty last)
+      filtered.sort((a,b)=>{
+        const ai = toIso(a.createdAt), bi = toIso(b.createdAt);
+        if (!ai && !bi) return 0;
+        if (!ai) return 1;
+        if (!bi) return -1;
+        return bi.localeCompare(ai);
+      });
+
+      render(filtered);
+    }
+
+    async function loadPage(){
+      if (reachedEnd) return;
+
+      // Query: newest first by createdAt
+      // Note: documents without createdAt will be excluded by this ordering.
+      // The wheel saves createdAt with serverTimestamp(), so that should be fine.
+      let qRef = query(
+        collection(db, 'plays'),
+        orderBy('createdAt', 'desc'),
+        limit(PAGE_SIZE)
+      );
+      if (lastDocSnap){
+        qRef = query(
+          collection(db, 'plays'),
+          orderBy('createdAt', 'desc'),
+          startAfter(lastDocSnap),
+          limit(PAGE_SIZE)
+        );
+      }
+
+      // Fetch page
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = 'Loading…';
+      try{
+        const snap = await getDocs(qRef);
+        if (snap.empty){
+          reachedEnd = true;
+          applyFilters();
+          return;
+        }
+
+        const newRows = snap.docs.map(d=>{
+          const data = d.data() || {};
+          return {
+            name: data.name ?? '',
+            surename: data.surename ?? data.surename, // keep misspelling if that’s how it was saved
+            surname: data.surname,                     // tolerate alternative
+            cell: data.cell ?? data.phone ?? '',
+            phone: data.phone,
+            prize: data.prize ?? '',
+            dateKey: data.dateKey ?? '',
+            createdAt: data.createdAt ?? ''           // Timestamp or string
+          };
+        });
+
+        allRows = allRows.concat(newRows);
+        lastDocSnap = snap.docs[snap.docs.length - 1];
+        if (snap.size < PAGE_SIZE) reachedEnd = true;
+        applyFilters();
+      } catch (err){
+        console.error('Error loading Firestore data:', err);
+        tbody.innerHTML = `<tr><td colspan="6" class="empty">Failed to load from Firestore. Check network/permissions.</td></tr>`;
+        countEl.textContent = '0 rows (load error)';
+      } finally {
+        loadMoreBtn.disabled = reachedEnd;
+        loadMoreBtn.textContent = reachedEnd ? 'No more rows' : 'Load more';
+      }
+    }
+
+    function downloadCsv(rows){
+      const header = ['name','surename','cell','prize','dateKey','createdAt'];
+      const lines = [header.join(',')];
+      rows.forEach(r=>{
+        lines.push([
+          csvCell(r.name ?? ''),
+          csvCell(r.surename ?? r.surname ?? ''),
+          csvCell(r.cell ?? r.phone ?? ''),
+          csvCell(r.prize ?? ''),
+          csvCell(r.dateKey ?? ''),
+          csvCell(toIso(r.createdAt))
+        ].join(','));
+      });
+      const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0,19).replaceAll(':','-');
+      a.href = url; a.download = `absa-wheel-plays_${stamp}.csv`;
+      document.body.appendChild(a);
+      a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+
+    /* ===== Wire up ===== */
+    [searchEl, prizeFilterEl, fromDateEl, toDateEl].forEach(el=>{
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+    clearBtn.addEventListener('click', ()=>{
+      searchEl.value = ''; prizeFilterEl.value = '';
+      fromDateEl.value = ''; toDateEl.value = '';
+      applyFilters();
+    });
+    downloadBtn.addEventListener('click', ()=>{
+      // Export *filtered* view
+      const q = (searchEl.value || '').toLowerCase().trim();
+      const prizeFilter = prizeFilterEl.value;
+      const fromVal = fromDateEl.value; const toVal = toDateEl.value;
+      const rows = allRows.filter(r=>{
+        const name = (r.name ?? '').toLowerCase();
+        const surename = (r.surename ?? r.surname ?? '').toLowerCase();
+        const cell = (r.cell ?? r.phone ?? '').toLowerCase();
+        const prize = (r.prize ?? '').toLowerCase();
+        const createdIso = toIso(r.createdAt);
+        const rowDate = (r.dateKey ?? (createdIso ? createdIso.slice(0,10) : ''));
+        if (q && !`${name} ${surename} ${cell} ${prize}`.includes(q)) return false;
+        if (prizeFilter && (r.prize ?? '') !== prizeFilter) return false;
+        if (fromVal && rowDate && rowDate < fromVal) return false;
+        if (toVal && rowDate && rowDate > toVal) return false;
+        return true;
+      });
+      downloadCsv(rows);
+    });
+    loadMoreBtn.addEventListener('click', loadPage);
+
+    // Initial load
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">Loading first ${PAGE_SIZE} rows…</td></tr>`;
+    await loadPage();
+  </script>
+</body>
+</html>
