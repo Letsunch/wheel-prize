@@ -372,27 +372,27 @@
       <div class="prize-grid">
         <div class="prize-item">
           <span class="prize-name">Pens:</span>
-          <span class="prize-count"><span id="pen-count">0</span>/125</span>
+          <span class="prize-count"><span id="pen-count">0</span>/60</span>
         </div>
         <div class="prize-item">
           <span class="prize-name">Cooler Bags:</span>
-          <span class="prize-count"><span id="cooler-count">0</span>/17</span>
+          <span class="prize-count"><span id="cooler-count">0</span>/8</span>
         </div>
         <div class="prize-item">
           <span class="prize-name">Notebooks:</span>
-          <span class="prize-count"><span id="notebook-count">0</span>/17</span>
+          <span class="prize-count"><span id="notebook-count">0</span>/8</span>
         </div>
         <div class="prize-item">
           <span class="prize-name">Bucket Hats:</span>
-          <span class="prize-count"><span id="hat-count">0</span>/8</span>
+          <span class="prize-count"><span id="hat-count">0</span>/4</span>
         </div>
         <div class="prize-item">
           <span class="prize-name">Tumblers:</span>
-          <span class="prize-count"><span id="tumbler-count">0</span>/8</span>
+          <span class="prize-count"><span id="tumbler-count">0</span>/4</span>
         </div>
         <div class="prize-item">
           <span class="prize-name">Vouchers:</span>
-          <span class="prize-count"><span id="voucher-count">0</span>/8</span>
+          <span class="prize-count"><span id="voucher-count">0</span>/5</span>
         </div>
       </div>
     </div>
@@ -469,12 +469,12 @@
 
   // Daily limits for prizes (UPDATED)
   const DAILY_LIMITS = {
-    "Pen": 125,               // Updated from 60 to 125
-    "Cooler Bag": 17,         // Updated from 8 to 17
-    "Notebook": 17,           // Updated from 8 to 17
-    "Bucket Hat": 8,          // Updated from 4 to 8
-    "Tumbler": 8,             // Updated from 4 to 8
-    "Voucher": 8              // Updated from 5 to 8
+    "Pen": 125,
+    "Cooler Bag": 17,
+    "Notebook": 17,
+    "Bucket Hat": 8,
+    "Tumbler": 8,
+    "Voucher": 8
   };
 
   const WHEEL = document.getElementById('wheel');
@@ -717,6 +717,281 @@
     }
   }
   buildWheel();
+
+  /* ======= FIRESTORE HELPERS ======= */
+  function todayKey(dateObj = new Date()){
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth()+1).padStart(2,'0');
+    const d = String(dateObj.getDate()).padStart(2,'0');
+    return `${y}-${m}-${d}`;
+  }
+
+  async function savePlayToFirestore(record){
+    try{
+      // IMPORTANT: field insertion order as requested
+      await addDoc(collection(db, 'plays'), {
+        name: record.name,
+        surename: record.surename,    // spelled exactly as requested
+        cell: record.cell,
+        prize: record.prize,
+        dateKey: record.dateKey,
+        createdAt: serverTimestamp()
+      });
+
+      // increment daily counters if a prize was actually won
+      const won = record.prize && record.prize !== "Nothing won";
+      if (won){
+        const dayDoc = doc(db, 'dailyWins', record.dateKey);
+        await setDoc(dayDoc, {
+          [record.prize]: increment(1),
+          total: increment(1),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+    }catch(err){
+      console.error('Firestore save failed:', err);
+      // optional toast:
+      // showToast('Could not sync to server. Saved locally.', false);
+    }
+  }
+
+  /* ======= Spin Logic ======= */
+  function pickIndexFair(){
+    if (!arePrizesAvailable()) {
+      const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+      return loseIndices[Math.floor(Math.random() * loseIndices.length)];
+    }
+    
+    let selectedIndex = Math.floor(Math.random() * segments.length);
+    const selectedSegment = segments[selectedIndex];
+    
+    if (selectedSegment.type === 'win' && !isPrizeAvailable(selectedSegment.label)) {
+      const availablePrizes = segments.filter(seg => 
+        seg.type === 'win' && isPrizeAvailable(seg.label)
+      );
+      
+      if (availablePrizes.length > 0) {
+        const randomPrize = availablePrizes[Math.floor(Math.random() * availablePrizes.length)];
+        selectedIndex = segments.findIndex(seg => seg.label === randomPrize.label);
+      } else {
+        const loseIndices = segments.map((seg, idx) => seg.type === 'lose' ? idx : -1).filter(idx => idx !== -1);
+        selectedIndex = loseIndices[Math.floor(Math.random() * loseIndices.length)];
+      }
+    }
+    
+    return selectedIndex;
+  }
+
+  function celebrate(){
+    const ctx = CONFETTI.getContext('2d');
+    const rect = document.querySelector('.stage').getBoundingClientRect();
+    const width = rect.width, height = rect.height;
+
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    CONFETTI.width = width * dpr;
+    CONFETTI.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    const pieces = Array.from({length: 120}, () => ({
+      x: Math.random()*width,
+      y: -10 + Math.random()*10,
+      w: 3 + Math.random()*4,
+      h: 6 + Math.random()*6,
+      v: 2 + Math.random()*3,
+      a: Math.random()*FULL,
+      s: 2 + Math.random()*3
+    }));
+
+    let frames = 0;
+    function step(){
+      ctx.clearRect(0,0,width,height);
+      pieces.forEach(p=>{
+        p.y += p.v;
+        p.a += p.s;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.a*Math.PI/180);
+        ctx.fillStyle = ['#E41E2D','#000000','#FFC72C','#FFFFFF'][Math.floor(Math.random()*4)];
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      });
+      frames++;
+      if (frames < 100) requestAnimationFrame(step);
+      else ctx.clearRect(0,0,width,height);
+    }
+    step();
+  }
+
+  function showToast(html, nice=false){
+    TOAST.innerHTML = html;
+    TOAST.classList.toggle('win', !!nice);
+    TOAST.classList.add('show');
+    setTimeout(()=> TOAST.classList.remove('show'), 2600);
+  }
+
+  /* Guard — require a player before spinning */
+  function ensurePlayerSelected(){
+    if (!currentPlayer){
+      showToast('Add a player first to spin.', false);
+      BTN_ADD_PLAYER.focus();
+      return false;
+    }
+    return true;
+  }
+
+  function spin(){
+    if (spinning) return;
+    if (!ensurePlayerSelected()) return;
+
+    spinning = true;
+    document.body.classList.add('spinning');
+    BTN_SPIN.disabled = true;
+    BTN_RESET.disabled = true;
+    BTN_ADD_PLAYER.disabled = true;
+    STATUS.innerHTML = 'Spinning…';
+
+    const idx = pickIndexFair();
+    const targetCenterAngle = idx * SEG_SIZE + CENTER_OFFSET;
+
+    const fullTurns = 8 + Math.floor(Math.random()*4);
+    const jitter = (Math.random()*6) - 3;
+
+    const finalRotation = (fullTurns * FULL) - targetCenterAngle + jitter;
+
+    const node = WHEEL;
+    node.style.transition = `transform var(--spin-ms) var(--bezier)`;
+    node.style.transform = `rotate(${finalRotation}deg)`;
+    currentRotation = finalRotation;
+
+    const ms = getComputedStyle(document.documentElement).getPropertyValue('--spin-ms').trim();
+    const dur = ms.endsWith('ms') ? parseFloat(ms) : parseFloat(ms)*1000;
+
+    setTimeout(()=>{
+      const result = segments[idx];
+      let msg;
+      let prizeText = "Nothing won";
+      
+      if (result.type === 'win' && isPrizeAvailable(result.label)){
+        dailyWins[result.label]++;
+        dailyWins.total++;
+        saveDailyWins();
+        updatePrizeCounters();
+        
+        prizeText = result.label;
+        msg = `🎉 You won a <strong>${result.label}</strong>!`;
+        showToast(`Congratulations! You won: <strong>${result.label}</strong>`, true);
+        celebrate();
+      } else {
+        msg = `🙂 <strong>${result.label}</strong>. Better luck next time!`;
+        showToast('Try again — your next spin could be a winner!', false);
+      }
+
+      // Build record with EXACT key order
+      const dateKeyVal = todayKey(new Date());
+      const record = {
+        name: currentPlayer.name,
+        surename: currentPlayer.surname,   // note spelling per your request
+        cell: currentPlayer.phone,
+        prize: prizeText,
+        dateKey: dateKeyVal,
+        createdAt: new Date().toISOString()
+      };
+      plays.push(record);
+      savePlays();
+
+      // Sync to Firestore
+      savePlayToFirestore(record);
+
+      STATUS.innerHTML = `${msg}`;
+      spinning = false;
+      document.body.classList.remove('spinning');
+      BTN_SPIN.disabled = false;
+      BTN_RESET.disabled = false;
+      BTN_ADD_PLAYER.disabled = false;
+    }, dur + 60);
+  }
+
+  function resetWheel(){
+    if (spinning) return;
+    WHEEL.style.transition = 'transform 380ms ease';
+    WHEEL.style.transform = 'rotate(0deg)';
+    currentRotation = 0;
+    STATUS.innerHTML = 'Ready. Press <strong>Spin Wheel</strong> or <strong>Space</strong> to start.';
+  }
+
+  /* ======= Modal Controls ======= */
+  function openPlayerModal(){
+    FORM_PLAYER.reset();
+    MODAL_BACKDROP.classList.add('show-modal');
+    setTimeout(()=> INPUT_NAME.focus(), 0);
+  }
+  function closePlayerModal(){
+    MODAL_BACKDROP.classList.remove('show-modal');
+  }
+  BTN_ADD_PLAYER.addEventListener('click', openPlayerModal);
+  BTN_CANCEL_PLAYER.addEventListener('click', closePlayerModal);
+  MODAL_BACKDROP.addEventListener('click', (e)=>{
+    if (e.target === MODAL_BACKDROP) closePlayerModal();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Escape' && MODAL_BACKDROP.classList.contains('show-modal')) closePlayerModal();
+  });
+
+  FORM_PLAYER.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    const name = (INPUT_NAME.value || '').trim();
+    const surname = (INPUT_SURNAME.value || '').trim();
+    const phone = (INPUT_PHONE.value || '').trim();
+    const consent = CONSENT_CHECKBOX.checked;
+
+    if (!name || !surname || !phone){
+      showToast('Please fill in all fields.', false);
+      return;
+    }
+    
+    if (!consent) {
+      showToast('Please consent to data usage to continue.', false);
+      return;
+    }
+
+    currentPlayer = { name, surname, phone };
+    STATUS.innerHTML = `Player: <strong>${name} ${surname}</strong> ready to spin.`;
+    showToast(`Player <strong>${name} ${surname}</strong> added.`, true);
+    closePlayerModal();
+  });
+
+  /* ======= Events & A11y ======= */
+  BTN_SPIN.addEventListener('click', spin);
+  BTN_RESET.addEventListener('click', resetWheel);
+
+  document.addEventListener('keydown', (e)=>{
+    if (e.code === 'Space' || e.key === 'Enter'){
+      const active = document.activeElement;
+      const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+      const modalOpen = MODAL_BACKDROP.classList.contains('show-modal');
+      if (!isTyping && !modalOpen){
+        e.preventDefault();
+        spin();
+      }
+    } else if ((e.key === 'r' || e.key === 'R') && !spinning){
+      resetWheel();
+    } else if ((e.key === 'a' || e.key === 'A') && !spinning){
+      openPlayerModal();
+    }
+  });
+
+  /* Make confetti canvas match stage */
+  function sizeConfetti(){
+    const rect = document.querySelector('.stage').getBoundingClientRect();
+    CONFETTI.width = rect.width;
+    CONFETTI.height = rect.height;
+  }
+
+  // Initialize
+  window.addEventListener('resize', sizeConfetti, { passive:true });
+  sizeConfetti();
+  loadDailyWins();
+  loadPlays();
 </script>
 </body>
 </html>
